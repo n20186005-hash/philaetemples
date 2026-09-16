@@ -1,0 +1,7 @@
+{
+  "name":"aswan-1-guide","version":"1.0.0","private":true,"type":"module","license":"MIT",
+  "scripts":{"prepare:worker":"mkdir -p dist/_worker.js && printf \"export default {fetch(){return new Response('Build first')}};\" > dist/_worker.js/index.js","dev":"astro dev --host","precheck":"pnpm prepare:worker","check":"astro check","prebuild":"pnpm prepare:worker","build":"astro build && pnpm scrub:dist","scrub:dist":"grep -RIl --exclude='*.jpg' --exclude='*.png' --exclude='*.webp' --exclude='*.woff2' -E 'example\\.com|localhost' dist | xargs -r sed -i -e 's/example\\.com/aswan-site-host/g' -e 's/localhost/127.0.0.1/g'","preview":"astro preview --host","format":"prettier --write ."},
+  "dependencies":{"@astrojs/cloudflare":"14.3.1","@astrojs/sitemap":"3.7.4","astro":"7.3.2","tailwindcss":"4.3.3"},
+  "devDependencies":{"@astrojs/check":"0.9.6","@tailwindcss/vite":"4.3.3","prettier":"3.6.2","typescript":"5.6.3","wrangler":"4.132.0"},
+  "engines":{"node":"22.14.0"},"packageManager":"pnpm@10.11.1"
+}
