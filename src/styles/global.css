@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root { --ink:#1e2828; --sand:#f3ecdf; --teal:#0c6865; --sun:#d99a48; --cream:#fbf8f1; }
+html { scroll-behavior:smooth; background:var(--cream); }
+body { margin:0; color:var(--ink); background:var(--cream); font-family: "Noto Sans Arabic", system-ui, sans-serif; }
+.display { font-family: "Aref Ruqaa Ink", serif; }
+::selection { background:#d99a48; color:#1e2828; }
+.grain { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E"); }
+.hero-shadow { box-shadow: 0 30px 80px rgba(20,44,42,.18); }
+.section-rule { height:1px; background:linear-gradient(90deg,transparent,var(--sun),transparent); }
+.card-lift { transition:transform .22s cubic-bezier(.23,1,.32,1),box-shadow .22s ease; }
+.card-lift:hover { transform:translateY(-5px); box-shadow:0 18px 45px rgba(20,44,42,.12); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto; } *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important; } }
