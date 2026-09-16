@@ -1,0 +1,34 @@
+# Files that should NOT be uploaded when deploying this project to Cloudflare Workers.
+# The Astro + @astrojs/cloudflare build emits the deployable Worker and assets into `dist/`,
+# so only `dist/` needs to be uploaded. Everything below is source/deps/config and can be ignored.
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Astro build cache (not the final output)
+.astro/
+
+# Source files (compiled into dist/ by astro build)
+src/
+public/
+*.astro
+*.ts
+*.css
+astro.config.ts
+tsconfig.json
+package.json
+pnpm-lock.yaml
+
+# Local env / secrets
+.env
+.env.*
+.dev.vars
+
+# Git & VCS
+.git/
+.gitignore
+
+# Logs & misc
+*.log
+.wrangler/

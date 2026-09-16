@@ -1,24 +1,794 @@
 ---
 import '../styles/global.css';
-const site = Astro.site;
-const canonical = site ? new URL(Astro.url.pathname, site).toString() : undefined;
+import { getWeather, describeCode, buildAdvice, windInfo } from '../lib/weather';
+
+// ---- Single-attraction SEO entity binding (per template) ----
+const domain = 'philaetemples.com';
+const site = Astro.site || new URL(`https://${domain}`);
+const canonical = new URL(Astro.url.pathname, site).toString();
+const mapsShare = 'https://maps.app.goo.gl/Q4d24hPPiCNeoug77';
 const mapSrc = 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d4070.432921113762!2d32.8841021!3d24.0255836!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x143662db2c8977b9%3A0x99f2ac49832be578!2z2KfZhNiq2YTZp9mFINmF2YTZp9mFINmF2KfZhNiq2YTZp9mFINmF2KfZhA!5e0!3m2!1sar!2seg!4v1';
+const attractionFull = 'Philae Temple';
+const attractionShort = 'Philae Temples';
+const city = 'Aswan';
+const state = 'Aswan Governorate';
+const country = 'Egypt';
+const countryCode = 'EG';
+const postal = '1240271';
+const lat = 24.0255836;
+const lng = 32.8841021;
+const govtUrl = 'https://www.egypt.travel/';
+const heroImg = new URL('/images/aswan-nile.jpg', site).toString();
+
+// ---- Structured data: TouristAttraction (reviews stay on-page only, NOT in JSON-LD) ----
 const jsonLd = {
-  '@context':'https://schema.org','@type':'TouristAttraction','name':'معبد فيله','alternateName':'Philae Temple','description':'معبد جزيري مخصص للإلهة إيزيس، يصل إليه الزائر بالقارب وسط مياه النيل في أسوان.','url':canonical,'image':site ? new URL('/images/aswan-nile.jpg',site).toString() : '/images/aswan-nile.jpg','address':{'@type':'PostalAddress','streetAddress':'أول أسوان','addressLocality':'أسوان 1','addressRegion':'محافظة أسوان','postalCode':'1240271','addressCountry':'EG'},'geo':{'@type':'GeoCoordinates','latitude':24.0255836,'longitude':32.8841021},'openingHours':'Mo-Su 07:00-17:00','aggregateRating':{'@type':'AggregateRating','ratingValue':'4.8','reviewCount':'14787'}
+  '@context': 'https://schema.org',
+  '@type': 'TouristAttraction',
+  '@id': `https://${domain}/#attraction`,
+  name: attractionFull,
+  alternateName: [attractionShort, `${city} ${attractionFull}`, 'معبد فيله'],
+  description: `Comprehensive visitor guide to ${attractionFull} in ${city}, ${state}, ${country}: location, how to get there, live weather, seasonal tips, and visitor services.`,
+  url: `https://${domain}`,
+  image: [heroImg],
+  isAccessibleForFree: true,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: `${attractionFull}, Agilkia Island`,
+    addressLocality: `${city} 1`,
+    addressRegion: state,
+    postalCode: postal,
+    addressCountry: countryCode,
+  },
+  geo: { '@type': 'GeoCoordinates', latitude: lat, longitude: lng },
+  openingHours: 'Mo-Su 07:00-17:00',
+  hasMap: mapsShare,
+  sameAs: [mapsShare, govtUrl],
 };
-const faqLd = {'@context':'https://schema.org','@type':'FAQPage','mainEntity':[
- {'@type':'Question','name':'كيف أصل إلى معبد فيله؟','acceptedAnswer':{'@type':'Answer','text':'من مرسى السد العالي أو المرسى القريب، تستقل قارباً إلى جزيرة أجيليكا؛ زمن الرحلة قصير، واتفق على سعر القارب قبل الانطلاق.'}},
- {'@type':'Question','name':'ما أفضل وقت للزيارة؟','acceptedAnswer':{'@type':'Answer','text':'الصباح الباكر أو الساعة الذهبية قبل الغروب ألطف للحرارة وأجمل للتصوير. الشتاء هو الموسم الأكثر راحة في أسوان.'}},
- {'@type':'Question','name':'هل القارب مشمول في التذكرة؟','acceptedAnswer':{'@type':'Answer','text':'عادةً تُدفع رحلة القارب بشكل منفصل عن تذكرة الموقع؛ اسأل عن السعر الإجمالي قبل ركوب القارب.'}}
-]};
+
+// ---- Structured data: FAQPage (English canonical entity Q&A) ----
+const faqLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Where is Philae Temple located?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Philae Temple is located on Agilkia Island in Aswan, Aswan Governorate, Egypt, reached by boat across the Nile.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'How do I get to Philae Temple?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'From the Philae Temple marina near the Aswan High Dam, take a short boat ride to Agilkia Island. Agree on the boat fare before boarding.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What are the opening hours of Philae Temple?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'The site is generally open daily from around 07:00 to 17:00. Hours can shift seasonally, so verify locally before you travel.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Is Philae Temple free to visit?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'No. An entrance ticket is required for the monument, and the boat transfer is usually paid separately from the site ticket.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What is the best time of year to visit Philae Temple?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Winter (December to February) is the most comfortable season, with mild days around 23–25°C. Summer is extremely hot, so visit at opening or closing time if you come then.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Why was Philae Temple moved?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'After the High Dam raised the Nile water level, the temple was dismantled and rebuilt stone by stone on Agilkia Island in a UNESCO-led international rescue project.',
+      },
+    },
+  ],
+};
+
+// ---- Visible (Arabic) FAQ ----
+const faqs = [
+  { q: 'كيف أصل إلى معبد فيله؟', a: 'من مرسى معبد فيله قرب السد العالي، تستقل قارباً قصيراً إلى جزيرة أجيليكا؛ اتفق على أجرة القارب قبل الانطلاق.' },
+  { q: 'ما أفضل وقت للزيارة؟', a: 'الشتاء (ديسمبر–فبراير) هو الأريح، بأيام حوالي 23–25°م. الصيف لاهب، فزرْ عند الفتح أو الإغلاق إن زرتَه حينها.' },
+  { q: 'هل القارب مشمول في التذكرة؟', a: 'عادةً تُدفع رحلة القارب بشكل منفصل عن تذكرة الموقع؛ اسأل عن السعر الإجمالي قبل ركوب القارب.' },
+  { q: 'أين يقع معبد فيله؟', a: 'يقع على جزيرة أجيليكا في أسوان بمصر، ويُصل إليه بالقارب عبر مياه النيل.' },
+  { q: 'ما مواعيد الفتح؟', a: 'يفتح يومياً تقريباً من 07:00 حتى 17:00، وقد تختلف المواعيد موسمياً؛ تحقّق محلياً قبل السفر.' },
+  { q: 'لماذا نُقل المعبد؟', a: 'بعد أن رفع السد العالي منسوب مياه النيل، فُكّك المعبد وبُني حجراً حجراً على جزيرة أجيليكا ضمن مشروع إنقاذ دولي بإشراف اليونسكو.' },
+];
+
+// ---- Weather (server-side fetch + cache) ----
+const weather = await getWeather();
+const currentInfo = weather ? describeCode(weather.current.code) : null;
+const today = weather?.days[0];
+const advice = weather ? buildAdvice(weather) : null;
+const windNow = weather ? windInfo(weather.current.wind) : null;
+
+function weekday(dateStr: string): string {
+  return new Intl.DateTimeFormat('ar-EG', { weekday: 'short' }).format(new Date(`${dateStr}T12:00:00`));
+}
 ---
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width" /><title>معبد فيله | دليل أسوان</title><meta name="description" content="دليل عربي هادئ لزيارة معبد فيله في أسوان: القارب، التاريخ، التذاكر، الطعام وما حول الجزيرة." />{canonical && <link rel="canonical" href={canonical} />}{canonical && <meta property="og:url" content={canonical} />}<meta property="og:title" content="معبد فيله | دليل أسوان" /><meta property="og:description" content="جزيرة، معبد، ونيل — خطط لزيارتك إلى فيله." /><meta property="og:image" content={site ? new URL('/images/aswan-nile.jpg',site).toString() : '/images/aswan-nile.jpg'} /><meta property="og:locale" content="ar_EG" /><link rel="icon" href="/icons/favicon.svg" /><link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.svg" /><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa+Ink&family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet" /><script type="application/ld+json" set:html={JSON.stringify(jsonLd)}></script><script type="application/ld+json" set:html={JSON.stringify(faqLd)}></script><script async src="https://www.googletagmanager.com/gtag/js?id=G-HXM22WWPKP"></script><script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-HXM22WWPKP');</script></head>
-<body class="grain"><header class="absolute inset-x-0 top-0 z-20"><div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 text-white"><a href="#top" class="flex items-center gap-3" aria-label="معبد فيله"><img src="/icons/logo.svg" alt="شعار معبد فيله" class="h-12 w-12" /><span class="hidden text-sm font-bold tracking-wide sm:block">فيله<br/><span class="font-normal opacity-70">دليل أسوان</span></span></a><nav class="hidden gap-7 text-sm font-semibold lg:flex"><a href="#story" class="opacity-80 transition hover:opacity-100">الحكاية</a><a href="#visit" class="opacity-80 transition hover:opacity-100">خطط زيارتك</a><a href="#around" class="opacity-80 transition hover:opacity-100">حول الجزيرة</a><a href="#faq" class="opacity-80 transition hover:opacity-100">الأسئلة</a></nav><a href="#map" class="rounded-full border border-white/40 px-5 py-2 text-sm font-bold backdrop-blur-sm transition hover:bg-white hover:text-[#0c6865]">افتح الخريطة</a></div></header>
-<main id="top"><section class="relative flex min-h-[720px] items-end overflow-hidden bg-[#0c6865] text-white"><img src="/images/aswan-nile.jpg" alt="مراكب شراعية على نيل أسوان" class="absolute inset-0 h-full w-full object-cover opacity-90" /><div class="absolute inset-0 bg-gradient-to-t from-[#092e31] via-[#0c4e50]/35 to-[#123f42]/10"></div><div class="absolute inset-0 bg-gradient-to-l from-[#092e31]/50 via-transparent to-transparent"></div><div class="relative mx-auto w-full max-w-7xl px-6 pb-20 pt-40"><div class="max-w-2xl"><p class="mb-6 flex items-center gap-3 text-sm font-bold tracking-[.18em] text-[#f6c981]"><span class="h-px w-12 bg-[#f6c981]"></span>أسوان · مصر العليا</p><h1 class="display text-6xl leading-[1.1] sm:text-8xl">فيله<br/><span class="text-[#f6c981]">حيث يهدأ النيل</span></h1><p class="mt-7 max-w-lg text-lg leading-9 text-white/80">معبد إيزيس فوق جزيرة أجيليكا. مكان لا تُرى فيه الآثار من خلف زجاج، بل تُسمع وهي تقترب منك مع وقع المجداف.</p><div class="mt-9 flex flex-wrap gap-3"><a href="#visit" class="rounded-full bg-[#e2a355] px-7 py-3.5 font-extrabold text-[#243535] transition hover:bg-[#f5bf71]">خطط لليوم</a><a href="#story" class="rounded-full border border-white/30 px-7 py-3.5 font-bold text-white backdrop-blur-sm transition hover:bg-white/15">اقرأ الحكاية</a></div></div></div><div class="absolute bottom-8 left-6 text-xs text-white/65 sm:left-12">24° 01′ 32″ N<br/>32° 53′ 03″ E</div></section>
-<section id="story" class="mx-auto max-w-7xl px-6 py-24"><div class="grid gap-14 lg:grid-cols-[.8fr_1.2fr] lg:items-center"><div><p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">01 · المكان</p><h2 class="display text-5xl leading-tight text-[#1e2828]">جزيرة تحمل<br/><span class="text-[#0c6865]">ذاكرة كاملة</span></h2><div class="mt-8 section-rule"></div></div><div class="text-lg leading-9 text-[#52605d]"><p>كان معبد فيله مكرساً للإلهة إيزيس، وبُنيت أجزاؤه في عصور بطلمية ورومانية متعاقبة. وعندما هددت مياه السد العالي الجزيرة القديمة، نُقل المجمع حجراً حجراً إلى جزيرة أجيليكا ضمن مشروع إنقاذ دولي.</p><p class="mt-5">اليوم، الرحلة جزء من المعنى: قارب صغير، ماء واسع، ثم بوابة حجرية تظهر ببطء من زرقة النيل.</p></div></div><div class="mt-16 grid gap-5 sm:grid-cols-3"><div class="card-lift overflow-hidden rounded-[2rem] bg-[#e8dfcf]"><img src="/images/nile-sailing.jpg" alt="قارب شراعي على النيل" class="h-60 w-full object-cover" /><div class="p-5"><p class="text-sm font-bold text-[#0c6865]">الاقتراب</p><p class="mt-2 font-bold">ابدأ من الماء</p></div></div><div class="card-lift overflow-hidden rounded-[2rem] bg-[#e8dfcf]"><img src="/images/aswan-landscape.jpg" alt="طبيعة أسوان والصخور الذهبية" class="h-60 w-full object-cover" /><div class="p-5"><p class="text-sm font-bold text-[#0c6865]">المشهد</p><p class="mt-2 font-bold">صخر، نخيل، وضوء</p></div></div><div class="card-lift overflow-hidden rounded-[2rem] bg-[#e8dfcf]"><img src="/images/nubian-sunset.jpg" alt="غروب أسوان" class="h-60 w-full object-cover" /><div class="p-5"><p class="text-sm font-bold text-[#0c6865]">الإيقاع</p><p class="mt-2 font-bold">اترك وقتاً للغروب</p></div></div></div></section>
-<section id="visit" class="bg-[#183f3e] py-24 text-white"><div class="mx-auto max-w-7xl px-6"><div class="mb-14 flex flex-wrap items-end justify-between gap-6"><div><p class="mb-4 text-sm font-bold tracking-[.18em] text-[#f6c981]">02 · خطط زيارتك</p><h2 class="display text-5xl">خريطة اليوم المثالي</h2></div><div class="rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm text-white/75">تقييم الزوار <strong class="mr-2 text-[#f6c981]">4.8 / 5</strong><span class="text-xs">من 14,787 مراجعة</span></div></div><div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4"><article class="card-lift rounded-[1.5rem] bg-[#f4eddf] p-6 text-[#1e2828]"><span class="text-3xl">◌</span><h3 class="mt-8 text-xl font-extrabold">الوقت</h3><p class="mt-3 text-sm leading-7 text-[#5e6b67]">يفتح يومياً، وتعرض الخرائط الإغلاق عند الخامسة مساءً. تحقّق محلياً قبل الانطلاق.</p></article><article class="card-lift rounded-[1.5rem] bg-[#e2a355] p-6 text-[#1e2828]"><span class="text-3xl">↝</span><h3 class="mt-8 text-xl font-extrabold">القارب</h3><p class="mt-3 text-sm leading-7">الوصول بالقارب أساسي للتجربة. اتفق على أجرة القارب قبل الركوب؛ غالباً لا تكون ضمن تذكرة الموقع.</p></article><article class="card-lift rounded-[1.5rem] bg-[#c5d6c5] p-6 text-[#1e2828]"><span class="text-3xl">✧</span><h3 class="mt-8 text-xl font-extrabold">الإيقاع</h3><p class="mt-3 text-sm leading-7">احجز 2–3 ساعات للمعبد والقارب والصور، وأكثر إذا رغبت في العرض الصوتي والضوئي.</p></article><article class="card-lift rounded-[1.5rem] bg-[#f4eddf] p-6 text-[#1e2828]"><span class="text-3xl">☼</span><h3 class="mt-8 text-xl font-extrabold">الموسم</h3><p class="mt-3 text-sm leading-7 text-[#5e6b67]">الشتاء ألطف. في الصيف، اختر الصباح الباكر واحمل ماءً وقبعة وحذاءً مريحاً.</p></article></div><div class="mt-16 grid gap-8 lg:grid-cols-2"><div class="rounded-[2rem] border border-white/15 p-8"><h3 class="text-2xl font-extrabold">المصاريف باختصار</h3><ul class="mt-6 space-y-4 text-sm leading-7 text-white/75"><li class="flex justify-between gap-4 border-b border-white/10 pb-4"><span>تذكرة الموقع</span><strong class="text-white">تختلف حسب الفئة</strong></li><li class="flex justify-between gap-4 border-b border-white/10 pb-4"><span>رحلة القارب</span><strong class="text-white">تُتفق مع القارب</strong></li><li class="flex justify-between gap-4"><span>المعرض الصوتي والضوئي</span><strong class="text-white">خيار إضافي</strong></li></ul><p class="mt-6 text-xs text-[#f6c981]">الأسعار تتغير؛ لا نعتمد رقماً ثابتاً قديمًا.</p></div><div class="rounded-[2rem] bg-[#0d5553] p-8"><h3 class="text-2xl font-extrabold">الموقف والتنقل</h3><p class="mt-5 leading-8 text-white/75">لا تتوقع موقفاً عند المعبد نفسه؛ اركن قرب المرسى أو نقطة الانطلاق، ثم أكمل بالقارب. من وسط أسوان، سيارة أجرة أو تطبيق نقل إلى المرسى هو الخيار الأبسط. اسأل السائق عن “Philae Temple boat dock”.</p></div></div></div></section>
-<section id="around" class="mx-auto max-w-7xl px-6 py-24"><div class="grid gap-16 lg:grid-cols-[.8fr_1.2fr]"><div><p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">03 · حول فيله</p><h2 class="display text-5xl leading-tight">بعد أن تعود<br/>من الجزيرة</h2><p class="mt-6 leading-8 text-[#62706a]">اجعل فيله نقطة في يوم أسوان، لا اليوم كله. هذه محطات قريبة تستحق أن تضيفها.</p></div><div class="grid gap-4 sm:grid-cols-2"><div class="rounded-3xl border border-[#dfd4c1] p-6"><span class="text-sm font-bold text-[#0c6865]">01</span><h3 class="mt-6 text-xl font-extrabold">السد العالي</h3><p class="mt-3 text-sm leading-7 text-[#62706a]">هندسة حديثة غيّرت علاقة أسوان بالنيل، وبالقرب من نقطة القوارب.</p></div><div class="rounded-3xl border border-[#dfd4c1] p-6"><span class="text-sm font-bold text-[#0c6865]">02</span><h3 class="mt-6 text-xl font-extrabold">متحف النوبة</h3><p class="mt-3 text-sm leading-7 text-[#62706a]">مدخل غني لفهم تاريخ وثقافة المنطقة الممتدة جنوب الشلال الأول.</p></div><div class="rounded-3xl border border-[#dfd4c1] p-6"><span class="text-sm font-bold text-[#0c6865]">03</span><h3 class="mt-6 text-xl font-extrabold">جزيرة الفنتين</h3><p class="mt-3 text-sm leading-7 text-[#62706a]">قرية نوبية، مقياس النيل، وآثار بين نخيل ومياه هادئة.</p></div><div class="rounded-3xl border border-[#dfd4c1] bg-[#e2a355] p-6"><span class="text-sm font-bold">04</span><h3 class="mt-6 text-xl font-extrabold">ماذا نأكل؟</h3><p class="mt-3 text-sm leading-7">جرّب المطبخ النوبي: الكشري، الفتة، السمك النيلي، وخبز الشمس مع شاي الكركديه.</p></div></div></div></section>
-<section id="map" class="bg-[#e8dfcf] py-24"><div class="mx-auto max-w-7xl px-6"><div class="mb-10 flex flex-wrap items-end justify-between gap-5"><div><p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">04 · الوصول</p><h2 class="display text-5xl">اتبع زرقة النيل</h2></div><p class="max-w-sm text-sm leading-7 text-[#52605d]">أول أسوان، البحر الأحمر 1240271، مصر<br/>24.0255836° N · 32.8841021° E</p></div><div class="overflow-hidden rounded-[2rem] border-8 border-[#f4eddf] bg-[#c8d7d0] shadow-2xl"><iframe title="خريطة معبد فيله" src={mapSrc} width="100%" height="460" style="border:0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div></div></section>
-<section id="faq" class="mx-auto max-w-4xl px-6 py-24"><p class="mb-4 text-center text-sm font-bold tracking-[.18em] text-[#0c6865]">05 · أسئلة شائعة</p><h2 class="display text-center text-5xl">قبل أن تذهب</h2><div class="mt-12 divide-y divide-[#dfd4c1] border-y border-[#dfd4c1]">{faqLd.mainEntity.map((item) => <details class="group py-6"><summary class="flex cursor-pointer list-none items-center justify-between gap-6 text-lg font-extrabold"><span>{item.name}</span><span class="text-2xl font-normal text-[#0c6865] transition group-open:rotate-45">＋</span></summary><p class="mt-4 max-w-2xl leading-8 text-[#62706a]">{item.acceptedAnswer.text}</p></details>)}</div></section></main>
-<footer class="bg-[#092e31] py-12 text-white"><div class="mx-auto flex max-w-7xl flex-col gap-8 px-6 sm:flex-row sm:items-end sm:justify-between"><div class="flex items-center gap-3"><img src="/icons/logo.svg" alt="" class="h-12 w-12" /><div><p class="font-bold">فيله · دليل أسوان</p><p class="mt-1 text-sm text-white/55">جزيرة، معبد، ونيل</p></div></div><p class="max-w-md text-sm leading-7 text-white/55">هذا الموقع دليل مستقل غير رسمي، ولا يمثل وزارة السياحة والآثار المصرية أو إدارة موقع معبد فيله. تحقّق من المواعيد والرسوم محلياً قبل الزيارة.</p></div></footer>
-</body></html>
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+
+    <!-- TDK -->
+    <title>{attractionFull} ({city}) - Visitor Guide &amp; Location</title>
+    <meta name="description" content="Discover {attractionFull} in {city}, {state}, {country}: location map, how to get there, live weather, seasonal tips, visitor services, and travel planning." />
+
+    <!-- Canonical -->
+    <link rel="canonical" href={canonical} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="{attractionFull} - {city} Travel Guide" />
+    <meta property="og:description" content="Official visitor guide to {attractionFull} in {city}, {state}, {country}." />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={heroImg} />
+    <meta property="og:image:alt" content="{attractionFull} in {city}, {country}" />
+    <meta property="og:locale" content="ar_EG" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- PWA -->
+    <meta name="theme-color" content="#0c6865" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <link rel="icon" href="/icons/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa+Ink&family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)}></script>
+    <script type="application/ld+json" set:html={JSON.stringify(faqLd)}></script>
+
+    <!-- Analytics (Google) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HXM22WWPKP"></script>
+    <script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-HXM22WWPKP');</script>
+  </head>
+  <body class="grain">
+    <header class="absolute inset-x-0 top-0 z-20">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 text-white">
+        <a href="#top" class="flex items-center gap-3" aria-label="معبد فيله">
+          <img src="/icons/logo.svg" alt="شعار معبد فيله" class="h-12 w-12" />
+          <span class="hidden text-sm font-bold tracking-wide sm:block">فيله<br /><span class="font-normal opacity-70">دليل أسوان</span></span>
+        </a>
+        <nav class="hidden gap-6 text-sm font-semibold lg:flex">
+          <a href="#story" class="opacity-80 transition hover:opacity-100">الحكاية</a>
+          <a href="#history" class="opacity-80 transition hover:opacity-100">التاريخ</a>
+          <a href="#getting-there" class="opacity-80 transition hover:opacity-100">المواصلات</a>
+          <a href="#weather" class="opacity-80 transition hover:opacity-100">الطقس</a>
+          <a href="#services" class="opacity-80 transition hover:opacity-100">الخدمات</a>
+          <a href="#faq" class="opacity-80 transition hover:opacity-100">الأسئلة</a>
+        </nav>
+        <a href="#map" class="rounded-full border border-white/40 px-5 py-2 text-sm font-bold backdrop-blur-sm transition hover:bg-white hover:text-[#0c6865]">افتح الخريطة</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- HERO -->
+      <section class="relative flex min-h-[720px] items-end overflow-hidden bg-[#0c6865] text-white">
+        <img src="/images/aswan-nile.jpg" alt="{attractionFull} - Main view in {city}, {country}" class="absolute inset-0 h-full w-full object-cover opacity-90" loading="eager" />
+        <div class="absolute inset-0 bg-gradient-to-t from-[#092e31] via-[#0c4e50]/35 to-[#123f42]/10"></div>
+        <div class="absolute inset-0 bg-gradient-to-l from-[#092e31]/50 via-transparent to-transparent"></div>
+        <div class="relative mx-auto w-full max-w-7xl px-6 pb-20 pt-40">
+          <div class="max-w-2xl">
+            <p class="mb-6 flex items-center gap-3 text-sm font-bold tracking-[.18em] text-[#f6c981]">
+              <span class="h-px w-12 bg-[#f6c981]"></span>أسوان · مصر العليا
+            </p>
+            <h1 class="display text-6xl leading-[1.1] sm:text-8xl">فيله<br /><span class="text-[#f6c981]">حيث يهدأ النيل</span></h1>
+            <p class="mt-7 max-w-lg text-lg leading-9 text-white/80">معبد إيزيس فوق جزيرة أجيليكا. مكان لا تُرى فيه الآثار من خلف زجاج، بل تُسمع وهي تقترب منك مع وقع المجداف.</p>
+            <div class="mt-9 flex flex-wrap gap-3">
+              <a href="#visit" class="rounded-full bg-[#e2a355] px-7 py-3.5 font-extrabold text-[#243535] transition hover:bg-[#f5bf71]">خطط لليوم</a>
+              <a href="#getting-there" class="rounded-full border border-white/30 px-7 py-3.5 font-bold text-white backdrop-blur-sm transition hover:bg-white/15">كيف تصل</a>
+            </div>
+          </div>
+        </div>
+        <div class="absolute bottom-8 left-6 text-xs text-white/65 sm:left-12">24° 01′ 32″ N<br />32° 53′ 03″ E</div>
+      </section>
+
+      <!-- 01 المكان -->
+      <section id="story" class="mx-auto max-w-7xl px-6 py-24">
+        <div class="grid gap-14 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+          <div>
+            <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">01 · المكان</p>
+            <h2 class="display text-5xl leading-tight text-[#1e2828]">جزيرة تحمل<br /><span class="text-[#0c6865]">ذاكرة كاملة</span></h2>
+            <div class="mt-8 section-rule"></div>
+          </div>
+          <div class="text-lg leading-9 text-[#52605d]">
+            <p>كان معبد فيله مكرساً للإلهة إيزيس، وبُنيت أجزاؤه في عصور بطلمية ورومانية متعاقبة. وعندما هددت مياه السد العالي الجزيرة القديمة، نُقل المجمع حجراً حجراً إلى جزيرة أجيليكا ضمن مشروع إنقاذ دولي.</p>
+            <p class="mt-5">اليوم، الرحلة جزء من المعنى: قارب صغير، ماء واسع، ثم بوابة حجرية تظهر ببطء من زرقة النيل.</p>
+          </div>
+        </div>
+        <div class="mt-16 grid gap-5 sm:grid-cols-3">
+          <div class="card-lift overflow-hidden rounded-[2rem] bg-[#e8dfcf]">
+            <img src="/images/nile-sailing.jpg" alt="Sailing boat on the Nile near {attractionShort}, {city}" class="h-60 w-full object-cover" loading="lazy" />
+            <div class="p-5">
+              <p class="text-sm font-bold text-[#0c6865]">الاقتراب</p>
+              <p class="mt-2 font-bold">ابدأ من الماء</p>
+            </div>
+          </div>
+          <div class="card-lift overflow-hidden rounded-[2rem] bg-[#e8dfcf]">
+            <img src="/images/aswan-landscape.jpg" alt="Aswan landscape near {attractionShort}, {country}" class="h-60 w-full object-cover" loading="lazy" />
+            <div class="p-5">
+              <p class="text-sm font-bold text-[#0c6865]">المشهد</p>
+              <p class="mt-2 font-bold">صخر، نخيل، وضوء</p>
+            </div>
+          </div>
+          <div class="card-lift overflow-hidden rounded-[2rem] bg-[#e8dfcf]">
+            <img src="/images/nubian-sunset.jpg" alt="Nubian sunset near {attractionShort}, {city}" class="h-60 w-full object-cover" loading="lazy" />
+            <div class="p-5">
+              <p class="text-sm font-bold text-[#0c6865]">الإيقاع</p>
+              <p class="mt-2 font-bold">اترك وقتاً للغروب</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 02 التاريخ والحكاية -->
+      <section id="history" class="bg-[#183f3e] py-24 text-white">
+        <div class="mx-auto max-w-7xl px-6">
+          <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#f6c981]">02 · التاريخ والحكاية</p>
+          <h2 class="display text-5xl">معبدٌ عبر ثلاثة آلاف عام</h2>
+          <div class="mt-10 grid gap-10 lg:grid-cols-2">
+            <div class="space-y-5 text-lg leading-9 text-white/80">
+              <p>نَبَع اسم «فيله» من اليونانية، وهو تحريفٌ للاسم المصري القديم «پيلاك» (Pilak) بمعنى «الجزيرة النائية» أو «آخِر الأماكن» — إذ كانت الحدّ الجنوبي للعمارة المعبدية المصرية عند الشلال الأول للنيل.</p>
+              <p>كانت فيله قِبلةً لعبادة إيزيس، إلهة السحر والأمومة؛ اجتمع عندها المصريون والنوبيون، بل وحجّاجٌ من اليونان وروما. أزدهر المعبد حتى القرن السادس الميلادي.</p>
+              <p>بُني المجمع على مراحل: نواةٌ من عهد نختنبو الأول (الأسرة الثلاثين)، ثم إضافاتٌ بطلمية ورومانية، منها كشك تراجان الشهير بواجهته الرقيقة.</p>
+              <p>بعد تشييد السد العالي وارتفاع منسوب بحيرة ناصر، قَرّرت اليونسكو وفريقٌ دولي نقل المعبد حجراً حجراً (1972–1980) إلى جزيرة أجيليكا المجاورة، أعلى وأبعد عن الغمر — واحدةٌ من أنجح حملات إنقاذ التراث في العالم.</p>
+            </div>
+            <div class="flex flex-col gap-6">
+              <div class="rounded-[2rem] border border-white/15 bg-white/5 p-8">
+                <p class="text-sm font-bold text-[#f6c981]">في الأساطير</p>
+                <p class="mt-3 leading-8 text-white/80">في الميثولوجيا المصرية، جمعت إيزيس أشلاء أوزوريس وأعادت إليه الحياة لساعات؛ وكانت فيله إحدى المحطات المقدّسة في رحلتها. جعلت هذه القصة من المكان رمزاً للأمومة والخلود عبر العصور.</p>
+              </div>
+              <div class="rounded-[2rem] bg-[#0d5553] p-8">
+                <p class="text-sm font-bold text-[#f6c981]">عرض الصوت والضوء</p>
+                <p class="mt-3 leading-8 text-white/80">يُروى تاريخ الجزيرة ليلاً عبر عرض «الصوت والضوء» بلغاتٍ متعددة — تجربةٌ أخرى لاكتشاف فيله بعد الغروب، عندما يهدأ الحرّ ويتراقص الضوء على الأحجار.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 03 خطط زيارتك -->
+      <section id="visit" class="mx-auto max-w-7xl px-6 py-24">
+        <div class="mb-14 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">03 · خطط زيارتك</p>
+            <h2 class="display text-5xl">خريطة اليوم المثالي</h2>
+          </div>
+          <div class="rounded-2xl border border-[#dfd4c1] bg-[#f4eddf] px-5 py-3 text-sm text-[#5e6b67]">
+            تقييم الزوار <strong class="ml-2 text-[#0c6865]">4.8 / 5</strong><span class="text-xs">من 14,785 مراجعة</span>
+          </div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <article class="card-lift rounded-[1.5rem] bg-[#f4eddf] p-6 text-[#1e2828]">
+            <span class="text-3xl">◌</span>
+            <h3 class="mt-8 text-xl font-extrabold">الوقت</h3>
+            <p class="mt-3 text-sm leading-7 text-[#5e6b67]">يفتح يومياً، وتعرض الخرائط الإغلاق عند الخامسة مساءً. تحقّق محلياً قبل الانطلاق.</p>
+          </article>
+          <article class="card-lift rounded-[1.5rem] bg-[#e2a355] p-6 text-[#1e2828]">
+            <span class="text-3xl">↝</span>
+            <h3 class="mt-8 text-xl font-extrabold">القارب</h3>
+            <p class="mt-3 text-sm leading-7">الوصول بالقارب أساسي للتجربة. اتفق على أجرة القارب قبل الركوب؛ غالباً لا تكون ضمن تذكرة الموقع.</p>
+          </article>
+          <article class="card-lift rounded-[1.5rem] bg-[#c5d6c5] p-6 text-[#1e2828]">
+            <span class="text-3xl">✧</span>
+            <h3 class="mt-8 text-xl font-extrabold">الإيقاع</h3>
+            <p class="mt-3 text-sm leading-7">احجز 2–3 ساعات للمعبد والقارب والصور، وأكثر إذا رغبت في العرض الصوتي والضوئي.</p>
+          </article>
+          <article class="card-lift rounded-[1.5rem] bg-[#f4eddf] p-6 text-[#1e2828]">
+            <span class="text-3xl">☼</span>
+            <h3 class="mt-8 text-xl font-extrabold">الموسم</h3>
+            <p class="mt-3 text-sm leading-7 text-[#5e6b67]">الشتاء ألطف. في الصيف، اختر الصباح الباكر واحمل ماءً وقبعة وحذاءً مريحاً.</p>
+          </article>
+        </div>
+        <div class="mt-16 grid gap-8 lg:grid-cols-2">
+          <div class="rounded-[2rem] border border-[#dfd4c1] p-8">
+            <h3 class="text-2xl font-extrabold">المصاريف باختصار</h3>
+            <ul class="mt-6 space-y-4 text-sm leading-7 text-[#5e6b67]">
+              <li class="flex justify-between gap-4 border-b border-[#dfd4c1] pb-4"><span>تذكرة الموقع</span><strong class="text-[#1e2828]">تختلف حسب الفئة</strong></li>
+              <li class="flex justify-between gap-4 border-b border-[#dfd4c1] pb-4"><span>رحلة القارب</span><strong class="text-[#1e2828]">تُتفق مع القارب</strong></li>
+              <li class="flex justify-between gap-4"><span>المعرض الصوتي والضوئي</span><strong class="text-[#1e2828]">خيار إضافي</strong></li>
+            </ul>
+            <p class="mt-6 text-xs text-[#0c6865]">الأسعار تتغير؛ لا نعتمد رقماً ثابتاً قديمًا.</p>
+          </div>
+          <div class="rounded-[2rem] bg-[#0c6865] p-8 text-white">
+            <h3 class="text-2xl font-extrabold">الموقف والتنقل</h3>
+            <p class="mt-5 leading-8 text-white/80">لا تتوقع موقفاً عند المعبد نفسه؛ اركن قرب المرسى أو نقطة الانطلاق، ثم أكمل بالقارب. من وسط أسوان، سيارة أجرة أو تطبيق نقل إلى المرسى هو الخيار الأبسط. اسأل السائق عن “Philae Temple boat dock”.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 04 آراء الزوّار -->
+      <section id="reviews" class="mx-auto max-w-7xl px-6 py-24">
+        <div class="grid gap-12 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+          <div>
+            <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">04 · آراء الزوّار</p>
+            <h2 class="display text-5xl leading-tight text-[#1e2828]">ماذا يقول<br /><span class="text-[#0c6865]">الزوّار؟</span></h2>
+            <div class="mt-8 section-rule"></div>
+          </div>
+          <div class="rounded-[2rem] border border-[#dfd4c1] bg-[#f4eddf] p-8">
+            <div class="flex items-center gap-4">
+              <span class="text-6xl font-extrabold text-[#0c6865]">4.8</span>
+              <div>
+                <div class="text-sm font-bold text-[#1e2828]">‎/‎ 5</div>
+                <div class="text-xs text-[#5e6b67]">من 14,785 مراجعة</div>
+              </div>
+            </div>
+            <p class="mt-6 text-xs leading-6 text-[#5e6b67]">
+              التقييم وعدد المراجعات متزامنان من تقييمات مستخدمي خرائط Google (Google Maps) · سبتمبر 2026 ·
+              <a href={mapsShare} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline">عرض كل التقييمات على خرائط Google ↗</a>
+            </p>
+            <p class="mt-3 text-xs leading-6 text-[#5e6b67]">
+              متزامن من تقييمات مستخدمي خرائط Google، وقت المزامنة سبتمبر 2026؛ حقوق النشر تعود للكتّاب الأصليين وخرائط Google.
+            </p>
+            <a href={mapsShare} target="_blank" rel="noopener noreferrer" class="mt-6 inline-block rounded-full bg-[#0c6865] px-7 py-3.5 font-extrabold text-white transition hover:bg-[#0d5553]">عرض كل التقييمات على خرائط Google</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- 05 المواصلات -->
+      <section id="getting-there" class="bg-[#e8dfcf] py-24">
+        <div class="mx-auto max-w-7xl px-6">
+          <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">05 · المواصلات</p>
+          <h2 class="display text-5xl text-[#1e2828]">كيف تصل إلى فيله؟</h2>
+          <p class="mt-6 max-w-2xl leading-8 text-[#62706a]">كل الطرق تبدأ من «مرسى معبد فيله» قرب السد العالي، حيث تستقلّ قارباً إلى الجزيرة. إليك الخيارات بحسب نقطة انطلاقك.</p>
+          <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="rounded-[2rem] bg-white p-7 shadow-sm">
+              <span class="text-sm font-bold text-[#0c6865]">01 · من المطار</span>
+              <h3 class="mt-4 text-xl font-extrabold text-[#1e2828]">مطار أسوان الدولي (ASW)</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">يبعد نحو 18 كم جنوب المدينة. الخيار الأسهل: تاكسي أو تطبيق نقل من المطار مباشرةً إلى المرسى (20–30 دقيقة). لا سكة حديد من المطار، والمواصلات العامة هنا شبه معدومة.</p>
+            </div>
+            <div class="rounded-[2rem] bg-white p-7 shadow-sm">
+              <span class="text-sm font-bold text-[#0c6865]">02 · بالقطار/الباص</span>
+              <h3 class="mt-4 text-xl font-extrabold text-[#1e2828]">من القاهرة أو الأقصر</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">تنزل في محطة أسوان، ثم تاكسي أو تطبيق نقل إلى المرسى (10–15 دقيقة). المحطة قريبة من وسط المدينة ومناطق الإقامة.</p>
+            </div>
+            <div class="rounded-[2rem] bg-white p-7 shadow-sm">
+              <span class="text-sm font-bold text-[#0c6865]">03 · داخل أسوان</span>
+              <h3 class="mt-4 text-xl font-extrabold text-[#1e2828]">المواصلات العامة</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">الميني‌باصات والسرافيس تصل منطقة السد العالي/المرسى بأجرة بسيطة، لكن بلا جدول ثابت. اسأل السائق عن «مرسى فيله» أو «السد العالي».</p>
+            </div>
+            <div class="rounded-[2rem] bg-white p-7 shadow-sm">
+              <span class="text-sm font-bold text-[#0c6865]">04 · التاكسي/التطبيق</span>
+              <h3 class="mt-4 text-xl font-extrabold text-[#1e2828]">الأوضح والأريح</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">اطلب «Philae Temple boat dock» أو «مرسى معبد فيله»، واتفق على الأجرة مسبقاً أو عبر التطبيق/العداد لتجنّب اللبس.</p>
+            </div>
+            <div class="rounded-[2rem] bg-[#0c6865] p-7 text-white sm:col-span-2 lg:col-span-1">
+              <span class="text-sm font-bold text-[#f6c981]">05 · المرسى ← المعبد</span>
+              <h3 class="mt-4 text-xl font-extrabold">القارب الأخير</h3>
+              <p class="mt-3 text-sm leading-7 text-white/80">قاربٌ صغير (موتور أو شراع) يعبر بك إلى جزيرة أجيليكا في دقائق. اتفق على أجرة القارب قبل الركوب، ولا تتوقع موقفاً عند المعبد نفسه.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 06 الطقس -->
+      <section id="weather" class="bg-[#183f3e] py-24 text-white">
+        <div class="mx-auto max-w-7xl px-6">
+          <div class="mb-12">
+            <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#f6c981]">06 · الطقس والنصائح</p>
+            <h2 class="display text-5xl">الطقس الآن وتوصيات الزيارة</h2>
+            <p class="mt-4 max-w-2xl text-white/70">لا تكتفِ بالأرقام — إليك ما يعنيه الطقس عملياً لرحلتك إلى الجزيرة.</p>
+          </div>
+
+          {weather && currentInfo && advice ? (
+            <>
+              {/* Base card: temperature, condition, rain prob, wind */}
+              <div class="grid gap-6 lg:grid-cols-[1.1fr_1.9fr]">
+                <div class="rounded-[2rem] bg-[#0d5553] p-8">
+                  <p class="text-sm font-bold text-[#f6c981]">الآن في أسوان</p>
+                  <div class="mt-3 flex items-center gap-4">
+                    <span class="text-6xl">{currentInfo.icon}</span>
+                    <span class="text-6xl font-extrabold">{Math.round(weather.current.temperature)}°</span>
+                  </div>
+                  <p class="mt-2 text-lg font-bold">{currentInfo.label}</p>
+                  <div class="mt-6 grid grid-cols-2 gap-4 text-sm text-white/80">
+                    <div><span class="block text-white/55">الإحساس الحراري</span>{Math.round(weather.current.apparent)}°</div>
+                    <div><span class="block text-white/55">احتمال المطر اليوم</span>{today?.rainProb ?? 0}%</div>
+                    <div><span class="block text-white/55">الرياح</span>{Math.round(weather.current.wind)} كم/س · {windNow?.word}</div>
+                    <div><span class="block text-white/55">الأشعة</span>{Math.round(weather.current.uv)}</div>
+                  </div>
+                </div>
+
+                <div class="rounded-[2rem] border border-white/15 p-8">
+                  <p class="mb-5 text-sm font-bold text-[#f6c981]">توقّع الأيام القادمة</p>
+                  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+                    {weather.days.map((d) => {
+                      const info = describeCode(d.code);
+                      return (
+                        <div class="rounded-2xl bg-white/5 p-4 text-center">
+                          <p class="text-xs text-white/60">{weekday(d.date)}</p>
+                          <p class="mt-1 text-xs text-white/40">{d.date.slice(8, 10)}</p>
+                          <p class="my-2 text-3xl">{info.icon}</p>
+                          <p class="text-sm font-bold">{Math.round(d.tmax)}°</p>
+                          <p class="text-xs text-white/55">{Math.round(d.tmin)}°</p>
+                          <p class="mt-1 text-[10px] text-white/45">مطر {d.rainProb}%</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Risk banner — only when there is a real risk */}
+              {advice.risks.length > 0 && (
+                <div class="mt-6 rounded-[2rem] border border-red-400/40 bg-red-500/15 p-6">
+                  <p class="mb-2 text-sm font-extrabold text-red-200">⚠️ تنبيه</p>
+                  <ul class="space-y-2 text-sm leading-7 text-red-100">
+                    {advice.risks.map((r) => <li>{r}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Smart advice — dynamic, only relevant blocks shown */}
+              <div class="mt-6 grid gap-5 md:grid-cols-3">
+                {advice.travel.length > 0 && (
+                  <div class="rounded-[2rem] bg-white/5 p-7">
+                    <p class="mb-4 flex items-center gap-2 text-sm font-bold text-[#f6c981]">✅ الاستعداد والملبس</p>
+                    <ul class="space-y-3 text-sm leading-7 text-white/85">
+                      {advice.travel.map((t) => <li>{t}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {advice.activity.length > 0 && (
+                  <div class="rounded-[2rem] bg-white/5 p-7">
+                    <p class="mb-4 flex items-center gap-2 text-sm font-bold text-[#f6c981]">✅ ترتيب الزيارة</p>
+                    <ul class="space-y-3 text-sm leading-7 text-white/85">
+                      {advice.activity.map((t) => <li>{t}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {advice.items.length > 0 && (
+                  <div class="rounded-[2rem] bg-white/5 p-7">
+                    <p class="mb-4 flex items-center gap-2 text-sm font-bold text-[#f6c981]">🎒 ما تأخذ معك</p>
+                    <ul class="space-y-3 text-sm leading-7 text-white/85">
+                      {advice.items.map((t) => <li>{t}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {advice.travel.length === 0 && advice.activity.length === 0 && advice.items.length === 0 && (
+                  <div class="rounded-[2rem] bg-white/5 p-7 text-sm leading-7 text-white/75 md:col-span-3">
+                    أحوالٌ معتدلة عموماً اليوم — استمتع بزيارتك دون قلق خاص.
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <p class="rounded-[2rem] border border-white/15 bg-white/5 p-8 text-white/70">تعذّر تحميل بيانات الطقس حالياً؛ أعد المحاولة لاحقاً.</p>
+          )}
+        </div>
+      </section>
+
+      <!-- 07 الفصول -->
+      <section id="seasons" class="mx-auto max-w-7xl px-6 py-24">
+        <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">07 · متى تزور؟</p>
+        <h2 class="display text-5xl text-[#1e2828]">استراتيجية الفصول الأربعة</h2>
+        <p class="mt-6 max-w-2xl leading-8 text-[#62706a]">أسوان مناخٌ صحراوي شديد الجفاف. إليك مقارنةً مبسّطة تعتمد على متوسطاتٍ مناخية سنوية عامة، لتخطيط رحلتك.</p>
+        <div class="mt-10 overflow-x-auto">
+          <table class="w-full min-w-[760px] border-collapse text-right text-sm">
+            <thead>
+              <tr class="bg-[#0c6865] text-white">
+                <th class="p-4 text-right font-bold">الموسم</th>
+                <th class="p-4 text-right font-bold">المناخ والحرارة</th>
+                <th class="p-4 text-right font-bold">النيل والإضاءة</th>
+                <th class="p-4 text-right font-bold">نصيحة الزيارة</th>
+                <th class="p-4 text-right font-bold">للتصوير</th>
+              </tr>
+            </thead>
+            <tbody class="text-[#52605d]">
+              <tr class="border-b border-[#dfd4c1] bg-[#f4eddf]">
+                <td class="p-4 font-extrabold text-[#1e2828]">الشتاء<br /><span class="text-xs font-normal text-[#5e6b67]">ديسمبر–فبراير</span></td>
+                <td class="p-4">أيام 23–25°م، ليالٍ 8–11°م. جاف ومشمس.</td>
+                <td class="p-4">منسوب منخفض وصافٍ، ضوء ناعم.</td>
+                <td class="p-4">الذروة وأفضل مواسم الراحة؛ احجز مبكراً، الصباح مثالي.</td>
+                <td class="p-4">ساعات ذهبية طويلة وسماء صافية.</td>
+              </tr>
+              <tr class="border-b border-[#dfd4c1]">
+                <td class="p-4 font-extrabold text-[#1e2828]">الربيع<br /><span class="text-xs font-normal text-[#5e6b67]">مارس–مايو</span></td>
+                <td class="p-4">30–38°م تتصاعد؛ رياح «خماسين» دافئة محمّلة بالغبار أحياناً.</td>
+                <td class="p-4">مياه دافئة، حركة رياح على السطح.</td>
+                <td class="p-4">موسم انتقالي جيد؛ راقب الغبار وحافظ على الترطيب.</td>
+                <td class="p-4">سماء درامية بالغبار محتملة.</td>
+              </tr>
+              <tr class="border-b border-[#dfd4c1] bg-[#f4eddf]">
+                <td class="p-4 font-extrabold text-[#1e2828]">الصيف<br /><span class="text-xs font-normal text-[#5e6b67]">يونيو–أغسطس</span></td>
+                <td class="p-4">40–45°م، جاف جداً، شمس لاهبة، وقليل جداً من المطر.</td>
+                <td class="p-4">نيل هادئ وحار.</td>
+                <td class="p-4">تجنّب منتصف النهار؛ اخرج عند الفتح/الإغلاق، واحمل ماءً وقبعة.</td>
+                <td class="p-4">قاسٍ نهاراً، لكن الساعة الزرقاء لطيفة؛ عرض الصوت والضوء مريح.</td>
+              </tr>
+              <tr>
+                <td class="p-4 font-extrabold text-[#1e2828]">الخريف<br /><span class="text-xs font-normal text-[#5e6b67]">سبتمبر–نوفمبر</span></td>
+                <td class="p-4">32–38°م تهدأ تدريجياً، لطيفة بحلول نوفمبر.</td>
+                <td class="p-4">مستوى مستقر.</td>
+                <td class="p-4">كتف موسم ممتاز بازدحام أقل من الشتاء.</td>
+                <td class="p-4">عودة الألوان الدافئة.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-4 text-xs text-[#5e6b67]">متوسطات مناخية عامة للإرشاد؛ الظروف الفعلية تتبدّل، تحقّق من الطقس الحيّ قبل الزيارة.</p>
+      </section>
+
+      <!-- 08 خطط مخصّصة -->
+      <section id="plans" class="bg-[#e8dfcf] py-24">
+        <div class="mx-auto max-w-7xl px-6">
+          <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">08 · خطط مخصّصة</p>
+          <h2 class="display text-5xl text-[#1e2828]">حسب نوع رحلتك</h2>
+          <div class="mt-12 grid gap-6 lg:grid-cols-3">
+            <div class="card-lift rounded-[2rem] bg-white p-8">
+              <span class="text-3xl">👨‍👩‍👧</span>
+              <h3 class="mt-5 text-2xl font-extrabold text-[#1e2828]">عائلات مع أطفال</h3>
+              <ul class="mt-4 space-y-3 text-sm leading-7 text-[#62706a]">
+                <li>رحلة القارب متعةٌ للأطفال؛ تأكّد من سترات النجاة للصغار.</li>
+                <li>اختر صباحاً بارداً، وتجنّب ذروة الحرارة ظهراً.</li>
+                <li>استخدم دورات المياه والمرافق عند المرسى قبل الركوب.</li>
+                <li>عربة الأطفال مفيدة على المسارات الممهّدة، لكن احذر الدرج.</li>
+              </ul>
+            </div>
+            <div class="card-lift rounded-[2rem] bg-white p-8">
+              <span class="text-3xl">📷</span>
+              <h3 class="mt-5 text-2xl font-extrabold text-[#1e2828]">محبّو التصوير</h3>
+              <ul class="mt-4 space-y-3 text-sm leading-7 text-[#62706a]">
+                <li>الساعة الذهبية عند الفتح/الإغلاق هي الأجمل على الأحجار.</li>
+                <li>انعكاس المعبد على مياه النيل لقطةٌ كلاسيكية.</li>
+                <li>عدسة واسعة لأبواب المعبد، ومقربة لتفاصيل النقوش.</li>
+                <li>لا تفوّت عرض الصوت والضوء ليلاً للأجواء الدرامية.</li>
+              </ul>
+            </div>
+            <div class="card-lift rounded-[2rem] bg-white p-8">
+              <span class="text-3xl">♿</span>
+              <h3 class="mt-5 text-2xl font-extrabold text-[#1e2828]">حركة محدودة</h3>
+              <ul class="mt-4 space-y-3 text-sm leading-7 text-[#62706a]">
+                <li>تتوفر مسارات ممهّدة على أجيليكا؛ اسأل عن منحدرات القوارب.</li>
+                <li>خصّص وقتاً أطول وارتاح عند نقاط الظل.</li>
+                <li>تجنّب الدرج غير الممهّد حيث وُجد.</li>
+                <li>يُستحسن مرافقٌ مُعاون عند التنقّل داخل المجمع.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 09 مسارات -->
+      <section id="routes" class="mx-auto max-w-7xl px-6 py-24">
+        <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">09 · مسارات مقترحة</p>
+        <h2 class="display text-5xl text-[#1e2828]">نصف يوم أم يوم كامل؟</h2>
+        <div class="mt-12 grid gap-6 lg:grid-cols-2">
+          <div class="rounded-[2rem] border border-[#dfd4c1] p-8">
+            <h3 class="text-2xl font-extrabold text-[#1e2828]">مسار نصف يوم · 3–4 ساعات</h3>
+            <ol class="mt-6 space-y-4 text-sm leading-7 text-[#52605d]">
+              <li class="flex gap-3"><span class="font-extrabold text-[#0c6865]">1</span><span>الوصول إلى مرسى معبد فيله قرب السد العالي.</span></li>
+              <li class="flex gap-3"><span class="font-extrabold text-[#0c6865]">2</span><span>القارب إلى جزيرة أجيليكا والبوابة الأولى.</span></li>
+              <li class="flex gap-3"><span class="font-extrabold text-[#0c6865]">3</span><span>فناء إيزيس، كشك تراجان، والمنظر على النيل.</span></li>
+              <li class="flex gap-3"><span class="font-extrabold text-[#0c6865]">4</span><span>العودة والاستراحة عند الميناء.</span></li>
+            </ol>
+          </div>
+          <div class="rounded-[2rem] bg-[#0c6865] p-8 text-white">
+            <h3 class="text-2xl font-extrabold">مسار يوم كامل · 7–8 ساعات</h3>
+            <ol class="mt-6 space-y-4 text-sm leading-7 text-white/85">
+              <li class="flex gap-3"><span class="font-extrabold text-[#f6c981]">1</span><span>ما سبق من زيارة المعبد والقارب.</span></li>
+              <li class="flex gap-3"><span class="font-extrabold text-[#f6c981]">2</span><span>السد العالي والسرد حول النيل.</span></li>
+              <li class="flex gap-3"><span class="font-extrabold text-[#f6c981]">3</span><span>متحف النوبة لفهم الثقافة المحلية.</span></li>
+              <li class="flex gap-3"><span class="font-extrabold text-[#f6c981]">4</span><span>جزيرة الفنتين أو قرية نوبية، وغروب على النيل.</span></li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10 الخدمات -->
+      <section id="services" class="bg-[#183f3e] py-24 text-white">
+        <div class="mx-auto max-w-7xl px-6">
+          <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#f6c981]">10 · خدمات الزوّار</p>
+          <h2 class="display text-5xl">مرافق ونوعها (نظرة محايدة)</h2>
+          <p class="mt-6 max-w-2xl leading-8 text-white/75">لا نرشّح متجراً أو مطعماً بعينه؛ فقط نوضّح الأنواع المتاحة لتخطط بموضوعية. تحقّق من التوفّر والأسعار محلياً.</p>
+          <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="rounded-[2rem] border border-white/15 bg-white/5 p-7">
+              <span class="text-3xl">🚻</span>
+              <h3 class="mt-4 text-xl font-extrabold">دورات المياه</h3>
+              <p class="mt-3 text-sm leading-7 text-white/75">متوفّرة بأنواعها العامة قرب المرسى ومدخل الموقع؛ ننصح باستخدامها قبل ركوب القارب.</p>
+            </div>
+            <div class="rounded-[2rem] border border-white/15 bg-white/5 p-7">
+              <span class="text-3xl">🅿️</span>
+              <h3 class="mt-4 text-xl font-extrabold">مواقف السيارات</h3>
+              <p class="mt-3 text-sm leading-7 text-white/75">موقفٌ عام للسيارات قرب نقطة الانطلاق؛ لا يتوفر موقف عند المعبد نفسه لأنه جزيرة.</p>
+            </div>
+            <div class="rounded-[2rem] border border-white/15 bg-white/5 p-7">
+              <span class="text-3xl">🍽️</span>
+              <h3 class="mt-4 text-xl font-extrabold">المأكولات والمشروبات</h3>
+              <p class="mt-3 text-sm leading-7 text-white/75">خيارات من كشك ومقهى ومطعم حول المرسى والمدينة؛ الأطباق النوبية متاحة بأنواعها.</p>
+            </div>
+            <div class="rounded-[2rem] border border-white/15 bg-white/5 p-7">
+              <span class="text-3xl">🛏️</span>
+              <h3 class="mt-4 text-xl font-extrabold">الإقامة</h3>
+              <p class="mt-3 text-sm leading-7 text-white/75">نطاق من إقامة اقتصادية إلى فنادق على النيل داخل أسوان؛ اختر حسب ميزانيتك وموقعك.</p>
+            </div>
+            <div class="rounded-[2rem] border border-white/15 bg-white/5 p-7">
+              <span class="text-3xl">🛍️</span>
+              <h3 class="mt-4 text-xl font-extrabold">التسوّق والصناعات اليدوية</h3>
+              <p class="mt-3 text-sm leading-7 text-white/75">أسواق ومحلات لبيع الحرف (الفخار النوبي، التحف، المنسوجات) قرب المرسى.</p>
+            </div>
+            <div class="rounded-[2rem] border border-white/15 bg-white/5 p-7">
+              <span class="text-3xl">⛽🔌</span>
+              <h3 class="mt-4 text-xl font-extrabold">الوقود وشحن السيارات</h3>
+              <p class="mt-3 text-sm leading-7 text-white/75">محطات وقود داخل أسوان، ونقاط شحن للسيارات الكهربائية متوزّعة بالمدينة — تحقّق من التغطية قبل رحلة طويلة.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 11 المسؤولية -->
+      <section id="responsibility" class="mx-auto max-w-7xl px-6 py-24">
+        <div class="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+          <div>
+            <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">11 · تثقيف ومسؤولية</p>
+            <h2 class="display text-5xl leading-tight text-[#1e2828]">زائرٌ واعٍ<br /><span class="text-[#0c6865]">يحفظ الذاكرة</span></h2>
+            <div class="mt-8 section-rule"></div>
+          </div>
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div class="rounded-3xl border border-[#dfd4c1] p-6">
+              <h3 class="text-xl font-extrabold text-[#1e2828]">لا تلمس النقوش</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">الحجر الناعم يتأثر بلمس اليدين مع الوقت. لا تصعد على المعالم ولا ترسم على الجدران.</p>
+            </div>
+            <div class="rounded-3xl border border-[#dfd4c1] p-6">
+              <h3 class="text-xl font-extrabold text-[#1e2828]">لا تترك أثراً</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">خذ ما أتيتَ به عبر القارب عائداً. لا ترمِ أي شيء في النيل أو على الجزيرة.</p>
+            </div>
+            <div class="rounded-3xl border border-[#dfd4c1] p-6">
+              <h3 class="text-xl font-extrabold text-[#1e2828]">احترم النيل</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">النيل منظومة حية؛ الحفاظ عليها جزء من حماية هذا المكان لمن بعدنا.</p>
+            </div>
+            <div class="rounded-3xl border border-[#dfd4c1] bg-[#e2a355] p-6">
+              <h3 class="text-xl font-extrabold text-[#1e2828]">درس في الإنقاذ</h3>
+              <p class="mt-3 text-sm leading-7">نقل فيله كان حملةً دولية لإنقاذ التراث. زيارتك إقرارٌ بقيمة حفظ الذاكرة البشرية.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 12 حول فيله -->
+      <section id="around" class="mx-auto max-w-7xl px-6 py-24">
+        <div class="grid gap-16 lg:grid-cols-[.8fr_1.2fr]">
+          <div>
+            <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">12 · حول فيله</p>
+            <h2 class="display text-5xl leading-tight">بعد أن تعود<br />من الجزيرة</h2>
+            <p class="mt-6 leading-8 text-[#62706a]">اجعل فيله نقطة في يوم أسوان، لا اليوم كله. هذه محطات قريبة تستحق أن تضيفها.</p>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="rounded-3xl border border-[#dfd4c1] p-6">
+              <span class="text-sm font-bold text-[#0c6865]">01</span>
+              <h3 class="mt-6 text-xl font-extrabold">السد العالي</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">هندسة حديثة غيّرت علاقة أسوان بالنيل، وبالقرب من نقطة القوارب.</p>
+            </div>
+            <div class="rounded-3xl border border-[#dfd4c1] p-6">
+              <span class="text-sm font-bold text-[#0c6865]">02</span>
+              <h3 class="mt-6 text-xl font-extrabold">متحف النوبة</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">مدخل غني لفهم تاريخ وثقافة المنطقة الممتدة جنوب الشلال الأول.</p>
+            </div>
+            <div class="rounded-3xl border border-[#dfd4c1] p-6">
+              <span class="text-sm font-bold text-[#0c6865]">03</span>
+              <h3 class="mt-6 text-xl font-extrabold">جزيرة الفنتين</h3>
+              <p class="mt-3 text-sm leading-7 text-[#62706a]">قرية نوبية، مقياس النيل، وآثار بين نخيل ومياه هادئة.</p>
+            </div>
+            <div class="rounded-3xl border border-[#dfd4c1] bg-[#e2a355] p-6">
+              <span class="text-sm font-bold">04</span>
+              <h3 class="mt-6 text-xl font-extrabold">ماذا نأكل؟</h3>
+              <p class="mt-3 text-sm leading-7">جرّب المطبخ النوبي: الكشري، الفتة، السمك النيلي، وخبز الشمس مع شاي الكركديه.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 13 الوصول -->
+      <section id="map" class="bg-[#e8dfcf] py-24">
+        <div class="mx-auto max-w-7xl px-6">
+          <div class="mb-10 flex flex-wrap items-end justify-between gap-5">
+            <div>
+              <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">13 · الوصول</p>
+              <h2 class="display text-5xl">اتبع زرقة النيل</h2>
+            </div>
+            <p class="max-w-sm text-sm leading-7 text-[#52605d]">أول أسوان، البحر الأحمر 1240271، مصر<br />24.0255836° N · 32.8841021° E</p>
+          </div>
+          <div class="overflow-hidden rounded-[2rem] border-8 border-[#f4eddf] bg-[#c8d7d0] shadow-2xl">
+            <iframe
+              title="خريطة معبد فيله"
+              src={mapSrc}
+              width="100%"
+              height="460"
+              style="border:0"
+              loading="lazy"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen=""></iframe>
+          </div>
+          <p class="mt-6 text-sm leading-7 text-[#52605d]">
+            للتحديثات والسياحة الرسمية، تفضل بزيارة
+            <a href={govtUrl} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline"> البوابة السياحية الرسمية لمصر ↗</a>.
+          </p>
+        </div>
+      </section>
+
+      <!-- 14 الأسئلة -->
+      <section id="faq" class="mx-auto max-w-4xl px-6 py-24">
+        <p class="mb-4 text-center text-sm font-bold tracking-[.18em] text-[#0c6865]">14 · أسئلة شائعة</p>
+        <h2 class="display text-center text-5xl">قبل أن تذهب</h2>
+        <div class="mt-12 divide-y divide-[#dfd4c1] border-y border-[#dfd4c1]">
+          {faqs.map((item) => (
+            <details class="group py-6">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-6 text-lg font-extrabold">
+                <span>{item.q}</span>
+                <span class="text-2xl font-normal text-[#0c6865] transition group-open:rotate-45">＋</span>
+              </summary>
+              <p class="mt-4 max-w-2xl leading-8 text-[#62706a]">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <!-- Sources -->
+      <section id="sources" class="bg-[#e8dfcf] py-16">
+        <div class="mx-auto max-w-7xl px-6">
+          <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">المصادر · متزامن سبتمبر 2026</p>
+          <h2 class="display text-3xl text-[#1e2828]">مصادر المعلومات</h2>
+          <div class="mt-6 space-y-3 text-sm leading-7 text-[#52605d]">
+            <p>
+              التقييمات: متزامنة من تقييمات مستخدمي خرائط Google (Google Maps)، وقت المزامنة سبتمبر 2026؛ حقوق النشر تعود للكتّاب الأصليين وخرائط Google.
+              <a href={mapsShare} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline">عرض كل التقييمات على خرائط Google ↗</a>
+            </p>
+            <p>
+              الخريطة والإحداثيات:
+              <a href={mapsShare} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline">خرائط Google (Google Maps) ↗</a>
+            </p>
+            <p>
+              السياحة الرسمية:
+              <a href={govtUrl} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline">البوابة السياحية الرسمية لمصر ↗</a>
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="bg-[#092e31] py-12 text-white">
+      <div class="mx-auto flex max-w-7xl flex-col gap-8 px-6 sm:flex-row sm:items-end sm:justify-between">
+        <div class="flex items-center gap-3">
+          <img src="/icons/logo.svg" alt="" class="h-12 w-12" />
+          <div>
+            <p class="font-bold">فيله · دليل أسوان</p>
+            <p class="mt-1 text-sm text-white/55">موقع تثقيفي غير ربحي · جزيرة، معبد، ونيل</p>
+          </div>
+        </div>
+        <p class="max-w-md text-sm leading-7 text-white/55">هذا الموقع دليل مستقل غير رسمي وغير ربحي، ولا يمثل وزارة السياحة والآثار المصرية أو إدارة موقع معبد فيله. تحقّق من المواعيد والرسوم محلياً قبل الزيارة.</p>
+      </div>
+    </footer>
+
+    <!-- PWA service worker registration -->
+    <script is:inline>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "Philae Temple - Aswan Visitor Guide",
+  "short_name": "Philae",
+  "description": "Visitor guide to Philae Temple in Aswan, Aswan Governorate, Egypt.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbf8f1",
+  "theme_color": "#0c6865",
+  "icons": [
+    { "src": "/icons/icon-16.svg", "sizes": "16x16", "type": "image/svg+xml" },
+    { "src": "/icons/icon-32.svg", "sizes": "32x32", "type": "image/svg+xml" },
+    { "src": "/icons/icon-180.svg", "sizes": "180x180", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
