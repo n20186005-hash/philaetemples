@@ -1,0 +1,22 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import GuidePage from '../../components/GuidePage.astro';
+import { en } from '../../content/en';
+import { attractionSchema, faqSchema } from '../../lib/schema';
+import { SITE } from '../../data/site';
+import { hreflangAlternates } from '../../i18n';
+
+const site = Astro.site ?? new URL(`https://${SITE.domain}`);
+const path = Astro.url.pathname;
+const canonical = new URL(path, site).toString();
+const alternates = hreflangAlternates(site, path);
+const jsonLd = [attractionSchema('en'), faqSchema(en.faq.items)];
+
+const title = 'Philae Temple (Aswan) — Visitor Guide & Location';
+const description =
+  'Comprehensive visitor guide to Philae Temple in Aswan, Egypt: location, how to reach it by boat, live weather, seasonal strategy, and visitor services.';
+---
+
+<BaseLayout locale="en" title={title} description={description} canonical={canonical} alternates={alternates} jsonLd={jsonLd}>
+  <GuidePage locale="en" c={en} />
+</BaseLayout>

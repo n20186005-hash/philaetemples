@@ -1,0 +1,142 @@
+---
+import { getWeather, describeCode, buildAdvice, windInfo } from '../lib/weather';
+import type { Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  c: { label: string; h2: string; sub: string; fall: string; nowLabel: string };
+}
+const { locale, c } = Astro.props;
+
+const weather = await getWeather();
+const currentInfo = weather ? describeCode(weather.current.code, locale) : null;
+const today = weather?.days[0];
+const advice = weather ? buildAdvice(weather, locale) : null;
+const windNow = weather ? windInfo(weather.current.wind, locale) : null;
+
+const weekday = (dateStr: string) =>
+  new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-GB', { weekday: 'short' }).format(
+    new Date(`${dateStr}T12:00:00`)
+  );
+
+const t = {
+  feels: locale === 'ar' ? 'الإحساس الحراري' : 'Feels like',
+  rain: locale === 'ar' ? 'احتمال المطر اليوم' : 'Rain chance today',
+  wind: locale === 'ar' ? 'الرياح' : 'Wind',
+  uv: locale === 'ar' ? 'الأشعة' : 'UV',
+  forecast: locale === 'ar' ? 'توقّع الأيام القادمة' : 'Upcoming days',
+  alert: locale === 'ar' ? '⚠️ تنبيه' : '⚠️ Alert',
+  travel: locale === 'ar' ? '✅ الاستعداد والملبس' : '✅ What to wear & prepare',
+  activity: locale === 'ar' ? '✅ ترتيب الزيارة' : '✅ How to plan the visit',
+  items: locale === 'ar' ? '🎒 ما تأخذ معك' : '🎒 What to bring',
+  calm: locale === 'ar' ? 'أحوالٌ معتدلة عموماً اليوم — استمتع بزيارتك دون قلق خاص.' : 'Generally mild conditions today — enjoy your visit without special concern.',
+  rainWord: locale === 'ar' ? 'مطر' : 'Rain',
+};
+
+const windText = (w: typeof windNow) => (w ? `${Math.round(w.level)} · ${w.word}` : '');
+---
+
+<section id="weather" class="bg-[#183f3e] py-24 text-white">
+  <div class="mx-auto max-w-7xl px-6">
+    <div class="mb-12">
+      <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#f6c981]">{c.label}</p>
+      <h2 class="display text-5xl">{c.h2}</h2>
+      <p class="mt-4 max-w-2xl text-white/70">{c.sub}</p>
+    </div>
+
+    {
+      weather && currentInfo && advice ? (
+        <>
+          <div class="grid gap-6 lg:grid-cols-[1.1fr_1.9fr]">
+            <div class="rounded-[2rem] bg-[#0d5553] p-8">
+              <p class="text-sm font-bold text-[#f6c981]">{c.nowLabel}</p>
+              <div class="mt-3 flex items-center gap-4">
+                <span class="text-6xl">{currentInfo.icon}</span>
+                <span class="text-6xl font-extrabold">{Math.round(weather.current.temperature)}°</span>
+              </div>
+              <p class="mt-2 text-lg font-bold">{currentInfo.label}</p>
+              <div class="mt-6 grid grid-cols-2 gap-4 text-sm text-white/80">
+                <div>
+                  <span class="block text-white/55">{t.feels}</span>
+                  {Math.round(weather.current.apparent)}°
+                </div>
+                <div>
+                  <span class="block text-white/55">{t.rain}</span>
+                  {today?.rainProb ?? 0}%
+                </div>
+                <div>
+                  <span class="block text-white/55">{t.wind}</span>
+                  {Math.round(weather.current.wind)} km/h · {windText(windNow)}
+                </div>
+                <div>
+                  <span class="block text-white/55">{t.uv}</span>
+                  {Math.round(weather.current.uv)}
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-[2rem] border border-white/15 p-8">
+              <p class="mb-5 text-sm font-bold text-[#f6c981]">{t.forecast}</p>
+              <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+                {weather.days.map((d) => {
+                  const info = describeCode(d.code, locale);
+                  return (
+                    <div class="rounded-2xl bg-white/5 p-4 text-center">
+                      <p class="text-xs text-white/60">{weekday(d.date)}</p>
+                      <p class="mt-1 text-xs text-white/40">{d.date.slice(8, 10)}</p>
+                      <p class="my-2 text-3xl">{info.icon}</p>
+                      <p class="text-sm font-bold">{Math.round(d.tmax)}°</p>
+                      <p class="text-xs text-white/55">{Math.round(d.tmin)}°</p>
+                      <p class="mt-1 text-[10px] text-white/45">{t.rainWord} {d.rainProb}%</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {advice.risks.length > 0 && (
+            <div class="mt-6 rounded-[2rem] border border-red-400/40 bg-red-500/15 p-6">
+              <p class="mb-2 text-sm font-extrabold text-red-200">{t.alert}</p>
+              <ul class="space-y-2 text-sm leading-7 text-red-100">
+                {advice.risks.map((r) => <li>{r}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div class="mt-6 grid gap-5 md:grid-cols-3">
+            {advice.travel.length > 0 && (
+              <div class="rounded-[2rem] bg-white/5 p-7">
+                <p class="mb-4 flex items-center gap-2 text-sm font-bold text-[#f6c981]">{t.travel}</p>
+                <ul class="space-y-3 text-sm leading-7 text-white/85">
+                  {advice.travel.map((x) => <li>{x}</li>)}
+                </ul>
+              </div>
+            )}
+            {advice.activity.length > 0 && (
+              <div class="rounded-[2rem] bg-white/5 p-7">
+                <p class="mb-4 flex items-center gap-2 text-sm font-bold text-[#f6c981]">{t.activity}</p>
+                <ul class="space-y-3 text-sm leading-7 text-white/85">
+                  {advice.activity.map((x) => <li>{x}</li>)}
+                </ul>
+              </div>
+            )}
+            {advice.items.length > 0 && (
+              <div class="rounded-[2rem] bg-white/5 p-7">
+                <p class="mb-4 flex items-center gap-2 text-sm font-bold text-[#f6c981]">{t.items}</p>
+                <ul class="space-y-3 text-sm leading-7 text-white/85">
+                  {advice.items.map((x) => <li>{x}</li>)}
+                </ul>
+              </div>
+            )}
+            {advice.travel.length === 0 && advice.activity.length === 0 && advice.items.length === 0 && (
+              <div class="rounded-[2rem] bg-white/5 p-7 text-sm leading-7 text-white/75 md:col-span-3">{t.calm}</div>
+            )}
+          </div>
+        </>
+      ) : (
+        <p class="rounded-[2rem] border border-white/15 bg-white/5 p-8 text-white/70">{c.fall}</p>
+      )
+    }
+  </div>
+</section>

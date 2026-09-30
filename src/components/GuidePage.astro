@@ -1,0 +1,408 @@
+---
+import WeatherSection from './WeatherSection.astro';
+import { SITE, MAP_SRC } from '../data/site';
+import type { GuideContent } from '../content/types';
+import type { Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  c: GuideContent;
+}
+const { locale, c } = Astro.props;
+
+const storyImgs = ['/images/nile-sailing.jpg', '/images/aswan-landscape.jpg', '/images/nubian-sunset.jpg'];
+const govLabel = locale === 'ar' ? 'البوابة السياحية الرسمية لمصر' : 'Egypt tourism portal';
+const mapsLabel = locale === 'ar' ? 'خرائط Google (Google Maps)' : 'Google Maps';
+---
+
+<header class="absolute inset-x-0 top-0 z-20">
+  <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 text-white">
+    <a href="#top" class="flex items-center gap-3" aria-label={c.footer.brand}>
+      <img src="/icons/logo.svg" alt={c.footer.brand} class="h-12 w-12" />
+      <span class="hidden text-sm font-bold tracking-wide sm:block">{c.hero.h1a}<br /><span class="font-normal opacity-70">{c.footer.tagline}</span></span>
+    </a>
+    <nav class="hidden gap-6 text-sm font-semibold lg:flex">
+      <a href="#story" class="opacity-80 transition hover:opacity-100">{c.nav.story}</a>
+      <a href="#history" class="opacity-80 transition hover:opacity-100">{c.nav.history}</a>
+      <a href="#getting-there" class="opacity-80 transition hover:opacity-100">{c.nav.gettingThere}</a>
+      <a href="#weather" class="opacity-80 transition hover:opacity-100">{c.nav.weather}</a>
+      <a href="#services" class="opacity-80 transition hover:opacity-100">{c.nav.services}</a>
+      <a href="#faq" class="opacity-80 transition hover:opacity-100">{c.nav.faq}</a>
+    </nav>
+    <div class="flex items-center gap-3">
+      <a href={c.switchLabel.href} class="rounded-full border border-white/40 px-4 py-2 text-sm font-bold backdrop-blur-sm transition hover:bg-white hover:text-[#0c6865]">{c.switchLabel.to}</a>
+      <a href="#map" class="rounded-full border border-white/40 px-5 py-2 text-sm font-bold backdrop-blur-sm transition hover:bg-white hover:text-[#0c6865]">{c.openMap}</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="relative flex min-h-[720px] items-end overflow-hidden bg-[#0c6865] text-white">
+    <img src="/images/aswan-nile.jpg" alt={`${c.hero.h1a} - ${SITE.city}, ${SITE.country}`} class="absolute inset-0 h-full w-full object-cover opacity-90" loading="eager" fetchpriority="high" />
+    <div class="absolute inset-0 bg-gradient-to-t from-[#092e31] via-[#0c4e50]/35 to-[#123f42]/10"></div>
+    <div class="absolute inset-0 bg-gradient-to-l from-[#092e31]/50 via-transparent to-transparent"></div>
+    <div class="relative mx-auto w-full max-w-7xl px-6 pb-20 pt-40">
+      <div class="max-w-2xl">
+        <p class="mb-6 flex items-center gap-3 text-sm font-bold tracking-[.18em] text-[#f6c981]">
+          <span class="h-px w-12 bg-[#f6c981]"></span>{c.hero.kicker}
+        </p>
+        <h1 class="display text-6xl leading-[1.1] sm:text-8xl">{c.hero.h1a}<br /><span class="text-[#f6c981]">{c.hero.h1b}</span></h1>
+        <p class="mt-7 max-w-lg text-lg leading-9 text-white/80">{c.hero.subtitle}</p>
+        <div class="mt-9 flex flex-wrap gap-3">
+          <a href="#visit" class="rounded-full bg-[#e2a355] px-7 py-3.5 font-extrabold text-[#243535] transition hover:bg-[#f5bf71]">{c.hero.ctaPlan}</a>
+          <a href="#getting-there" class="rounded-full border border-white/30 px-7 py-3.5 font-bold text-white backdrop-blur-sm transition hover:bg-white/15">{c.hero.ctaHow}</a>
+        </div>
+      </div>
+    </div>
+    <div class="absolute bottom-8 left-6 text-xs text-white/65 sm:left-12" style="white-space:pre-line">{c.hero.coords}</div>
+  </section>
+
+  <!-- 01 STORY -->
+  <section id="story" class="mx-auto max-w-7xl px-6 py-24">
+    <div class="grid gap-14 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+      <div>
+        <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.story.label}</p>
+        <h2 class="display text-5xl leading-tight text-[#1e2828]">{c.story.h2a}<br /><span class="text-[#0c6865]">{c.story.h2b}</span></h2>
+        <div class="mt-8 section-rule"></div>
+      </div>
+      <div class="text-lg leading-9 text-[#52605d]">
+        <p>{c.story.p1}</p>
+        <p class="mt-5">{c.story.p2}</p>
+      </div>
+    </div>
+    <div class="mt-16 grid gap-5 sm:grid-cols-3">
+      {c.story.cards.map((card, i) => (
+        <div class="card-lift overflow-hidden rounded-[2rem] bg-[#e8dfcf]">
+          <img src={storyImgs[i]} alt={`${card.title} — ${SITE.city}`} class="h-60 w-full object-cover" loading="lazy" />
+          <div class="p-5">
+            <p class="text-sm font-bold text-[#0c6865]">{card.tag}</p>
+            <p class="mt-2 font-bold">{card.title}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- 02 HISTORY -->
+  <section id="history" class="bg-[#183f3e] py-24 text-white">
+    <div class="mx-auto max-w-7xl px-6">
+      <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#f6c981]">{c.history.label}</p>
+      <h2 class="display text-5xl">{c.history.h2}</h2>
+      <div class="mt-10 grid gap-10 lg:grid-cols-2">
+        <div class="space-y-5 text-lg leading-9 text-white/80">
+          {c.history.paras.map((p) => <p>{p}</p>)}
+        </div>
+        <div class="flex flex-col gap-6">
+          <div class="rounded-[2rem] border border-white/15 bg-white/5 p-8">
+            <p class="text-sm font-bold text-[#f6c981]">{c.history.myth.label}</p>
+            <p class="mt-3 leading-8 text-white/80">{c.history.myth.text}</p>
+          </div>
+          <div class="rounded-[2rem] bg-[#0d5553] p-8">
+            <p class="text-sm font-bold text-[#f6c981]">{c.history.light.label}</p>
+            <p class="mt-3 leading-8 text-white/80">{c.history.light.text}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 VISIT -->
+  <section id="visit" class="mx-auto max-w-7xl px-6 py-24">
+    <div class="mb-14 flex flex-wrap items-end justify-between gap-6">
+      <div>
+        <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.visit.label}</p>
+        <h2 class="display text-5xl">{c.visit.h2}</h2>
+      </div>
+      <div class="rounded-2xl border border-[#dfd4c1] bg-[#f4eddf] px-5 py-3 text-sm text-[#5e6b67]">
+        {c.visit.ratingNote}
+      </div>
+    </div>
+    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {c.visit.cards.map((card) => (
+        <article class="card-lift rounded-[1.5rem] bg-[#f4eddf] p-6 text-[#1e2828]">
+          <span class="text-3xl">{card.icon}</span>
+          <h3 class="mt-8 text-xl font-extrabold">{card.title}</h3>
+          <p class="mt-3 text-sm leading-7 text-[#5e6b67]">{card.text}</p>
+        </article>
+      ))}
+    </div>
+    <div class="mt-16 grid gap-8 lg:grid-cols-2">
+      <div class="rounded-[2rem] border border-[#dfd4c1] p-8">
+        <h3 class="text-2xl font-extrabold">{c.visit.expenses.title}</h3>
+        <ul class="mt-6 space-y-4 text-sm leading-7 text-[#5e6b67]">
+          {c.visit.expenses.items.map((it) => (
+            <li class="flex justify-between gap-4 border-b border-[#dfd4c1] pb-4">
+              <span>{it.label}</span><strong class="text-[#1e2828]">{it.value}</strong>
+            </li>
+          ))}
+        </ul>
+        <p class="mt-6 text-xs text-[#0c6865]">{c.visit.expenses.note}</p>
+      </div>
+      <div class="rounded-[2rem] bg-[#0c6865] p-8 text-white">
+        <h3 class="text-2xl font-extrabold">{c.visit.parking.title}</h3>
+        <p class="mt-5 leading-8 text-white/80">{c.visit.parking.text}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 REVIEWS -->
+  <section id="reviews" class="mx-auto max-w-7xl px-6 py-24">
+    <div class="grid gap-12 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
+      <div>
+        <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.reviews.label}</p>
+        <h2 class="display text-5xl leading-tight text-[#1e2828]">{c.reviews.h2a}<br /><span class="text-[#0c6865]">{c.reviews.h2b}</span></h2>
+        <div class="mt-8 section-rule"></div>
+      </div>
+      <div class="rounded-[2rem] border border-[#dfd4c1] bg-[#f4eddf] p-8">
+        <div class="flex items-center gap-4">
+          <span class="text-6xl font-extrabold text-[#0c6865]">{c.reviews.score}</span>
+          <div>
+            <div class="text-sm font-bold text-[#1e2828]">‎/‎ 5</div>
+            <div class="text-xs text-[#5e6b67]">{c.reviews.scoreNote}</div>
+          </div>
+        </div>
+        <p class="mt-6 text-xs leading-6 text-[#5e6b67]">
+          {c.reviews.sourceNote1}
+          <a href={SITE.mapsShare} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline">{c.reviews.cta} ↗</a>
+        </p>
+        <p class="mt-3 text-xs leading-6 text-[#5e6b67]">{c.reviews.sourceNote2}</p>
+        <a href={SITE.mapsShare} target="_blank" rel="noopener noreferrer" class="mt-6 inline-block rounded-full bg-[#0c6865] px-7 py-3.5 font-extrabold text-white transition hover:bg-[#0d5553]">{c.reviews.cta}</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 GETTING THERE -->
+  <section id="getting-there" class="bg-[#e8dfcf] py-24">
+    <div class="mx-auto max-w-7xl px-6">
+      <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.gettingThere.label}</p>
+      <h2 class="display text-5xl text-[#1e2828]">{c.gettingThere.h2}</h2>
+      <p class="mt-6 max-w-2xl leading-8 text-[#62706a]">{c.gettingThere.intro}</p>
+      <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {c.gettingThere.options.map((opt, i) => (
+          <div class={i === c.gettingThere.options.length - 1 ? 'rounded-[2rem] bg-[#0c6865] p-7 text-white sm:col-span-2 lg:col-span-1' : 'rounded-[2rem] bg-white p-7 shadow-sm'}>
+            <span class="text-sm font-bold text-[#0c6865]">{opt.tag}</span>
+            <h3 class="mt-4 text-xl font-extrabold text-[#1e2828]">{opt.title}</h3>
+            <p class="mt-3 text-sm leading-7 text-[#62706a]">{opt.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 WEATHER -->
+  <WeatherSection locale={locale} c={c.weather} />
+
+  <!-- 07 SEASONS -->
+  <section id="seasons" class="mx-auto max-w-7xl px-6 py-24">
+    <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.seasons.label}</p>
+    <h2 class="display text-5xl text-[#1e2828]">{c.seasons.h2}</h2>
+    <p class="mt-6 max-w-2xl leading-8 text-[#62706a]">{c.seasons.intro}</p>
+    <div class="mt-10 overflow-x-auto">
+      <table class="w-full min-w-[760px] border-collapse text-right text-sm">
+        <thead>
+          <tr class="bg-[#0c6865] text-white">
+            <th class="p-4 text-right font-bold">{locale === 'ar' ? 'الموسم' : 'Season'}</th>
+            <th class="p-4 text-right font-bold">{locale === 'ar' ? 'المناخ والحرارة' : 'Climate & temperature'}</th>
+            <th class="p-4 text-right font-bold">{locale === 'ar' ? 'النيل والإضاءة' : 'Nile & light'}</th>
+            <th class="p-4 text-right font-bold">{locale === 'ar' ? 'نصيحة الزيارة' : 'Visit advice'}</th>
+            <th class="p-4 text-right font-bold">{locale === 'ar' ? 'للتصوير' : 'For photos'}</th>
+          </tr>
+        </thead>
+        <tbody class="text-[#52605d]">
+          {c.seasons.rows.map((r, i) => (
+            <tr class={i % 2 === 1 ? 'border-b border-[#dfd4c1] bg-[#f4eddf]' : 'border-b border-[#dfd4c1]'}>
+              <td class="p-4 font-extrabold text-[#1e2828]">{r.season}<br /><span class="text-xs font-normal text-[#5e6b67]">{r.range}</span></td>
+              <td class="p-4">{r.climate}</td>
+              <td class="p-4">{r.nile}</td>
+              <td class="p-4">{r.advice}</td>
+              <td class="p-4">{r.photo}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-4 text-xs text-[#5e6b67]">{c.seasons.tableNote}</p>
+  </section>
+
+  <!-- 08 PLANS -->
+  <section id="plans" class="bg-[#e8dfcf] py-24">
+    <div class="mx-auto max-w-7xl px-6">
+      <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.plans.label}</p>
+      <h2 class="display text-5xl text-[#1e2828]">{c.plans.h2}</h2>
+      <div class="mt-12 grid gap-6 lg:grid-cols-3">
+        {c.plans.cards.map((card) => (
+          <div class="card-lift rounded-[2rem] bg-white p-8">
+            <span class="text-3xl">{card.icon}</span>
+            <h3 class="mt-5 text-2xl font-extrabold text-[#1e2828]">{card.title}</h3>
+            <ul class="mt-4 space-y-3 text-sm leading-7 text-[#62706a]">
+              {card.items.map((it) => <li>{it}</li>)}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 ROUTES -->
+  <section id="routes" class="mx-auto max-w-7xl px-6 py-24">
+    <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.routes.label}</p>
+    <h2 class="display text-5xl text-[#1e2828]">{c.routes.h2}</h2>
+    <div class="mt-12 grid gap-6 lg:grid-cols-2">
+      <div class="rounded-[2rem] border border-[#dfd4c1] p-8">
+        <h3 class="text-2xl font-extrabold text-[#1e2828]">{c.routes.half.title}</h3>
+        <ol class="mt-6 space-y-4 text-sm leading-7 text-[#52605d]">
+          {c.routes.half.steps.map((s, i) => (
+            <li class="flex gap-3"><span class="font-extrabold text-[#0c6865]">{i + 1}</span><span>{s}</span></li>
+          ))}
+        </ol>
+      </div>
+      <div class="rounded-[2rem] bg-[#0c6865] p-8 text-white">
+        <h3 class="text-2xl font-extrabold">{c.routes.full.title}</h3>
+        <ol class="mt-6 space-y-4 text-sm leading-7 text-white/85">
+          {c.routes.full.steps.map((s, i) => (
+            <li class="flex gap-3"><span class="font-extrabold text-[#f6c981]">{i + 1}</span><span>{s}</span></li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 SERVICES -->
+  <section id="services" class="bg-[#183f3e] py-24 text-white">
+    <div class="mx-auto max-w-7xl px-6">
+      <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#f6c981]">{c.services.label}</p>
+      <h2 class="display text-5xl">{c.services.h2}</h2>
+      <p class="mt-6 max-w-2xl leading-8 text-white/75">{c.services.intro}</p>
+      <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {c.services.items.map((it) => (
+          <div class="rounded-[2rem] border border-white/15 bg-white/5 p-7">
+            <span class="text-3xl">{it.icon}</span>
+            <h3 class="mt-4 text-xl font-extrabold">{it.title}</h3>
+            <p class="mt-3 text-sm leading-7 text-white/75">{it.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 RESPONSIBILITY -->
+  <section id="responsibility" class="mx-auto max-w-7xl px-6 py-24">
+    <div class="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+      <div>
+        <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.responsibility.label}</p>
+        <h2 class="display text-5xl leading-tight text-[#1e2828]">{c.responsibility.h2a}<br /><span class="text-[#0c6865]">{c.responsibility.h2b}</span></h2>
+        <div class="mt-8 section-rule"></div>
+      </div>
+      <div class="grid gap-5 sm:grid-cols-2">
+        {c.responsibility.items.map((it) => (
+          <div class={it.accent ? 'rounded-3xl border border-[#dfd4c1] bg-[#e2a355] p-6' : 'rounded-3xl border border-[#dfd4c1] p-6'}>
+            <h3 class="text-xl font-extrabold text-[#1e2828]">{it.title}</h3>
+            <p class="mt-3 text-sm leading-7 text-[#62706a]">{it.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 AROUND -->
+  <section id="around" class="mx-auto max-w-7xl px-6 py-24">
+    <div class="grid gap-16 lg:grid-cols-[.8fr_1.2fr]">
+      <div>
+        <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.around.label}</p>
+        <h2 class="display text-5xl leading-tight">{c.around.h2a}<br />{c.around.h2b}</h2>
+        <p class="mt-6 leading-8 text-[#62706a]">{c.around.intro}</p>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {c.around.items.map((it) => (
+          <div class={it.accent ? 'rounded-3xl border border-[#dfd4c1] bg-[#e2a355] p-6' : 'rounded-3xl border border-[#dfd4c1] p-6'}>
+            <span class="text-sm font-bold text-[#0c6865]">{it.tag}</span>
+            <h3 class="mt-6 text-xl font-extrabold">{it.title}</h3>
+            <p class="mt-3 text-sm leading-7 text-[#62706a]">{it.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 MAP -->
+  <section id="map" class="bg-[#e8dfcf] py-24">
+    <div class="mx-auto max-w-7xl px-6">
+      <div class="mb-10 flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.map.label}</p>
+          <h2 class="display text-5xl">{c.map.h2}</h2>
+        </div>
+        <p class="max-w-sm text-sm leading-7 text-[#52605d]" style="white-space:pre-line">{c.map.address}</p>
+      </div>
+      <div class="overflow-hidden rounded-[2rem] border-8 border-[#f4eddf] bg-[#c8d7d0] shadow-2xl">
+        <iframe
+          title={c.map.h2}
+          src={MAP_SRC}
+          width="100%"
+          height="460"
+          style="border:0"
+          loading="lazy"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen=""
+        ></iframe>
+      </div>
+      <p class="mt-6 text-sm leading-7 text-[#52605d]">
+        {c.map.officialNote}
+        <a href={SITE.govtUrl} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline"> {govLabel} ↗</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- 14 FAQ -->
+  <section id="faq" class="mx-auto max-w-4xl px-6 py-24">
+    <p class="mb-4 text-center text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.faq.label}</p>
+    <h2 class="display text-center text-5xl">{c.faq.h2}</h2>
+    <div class="mt-12 divide-y divide-[#dfd4c1] border-y border-[#dfd4c1]">
+      {c.faq.items.map((item) => (
+        <details class="group py-6">
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-6 text-lg font-extrabold">
+            <span>{item.q}</span>
+            <span class="text-2xl font-normal text-[#0c6865] transition group-open:rotate-45">＋</span>
+          </summary>
+          <p class="mt-4 max-w-2xl leading-8 text-[#62706a]">{item.a}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+
+  <!-- SOURCES -->
+  <section id="sources" class="bg-[#e8dfcf] py-16">
+    <div class="mx-auto max-w-7xl px-6">
+      <p class="mb-4 text-sm font-bold tracking-[.18em] text-[#0c6865]">{c.sources.label}</p>
+      <h2 class="display text-3xl text-[#1e2828]">{c.sources.h2}</h2>
+      <div class="mt-6 space-y-3 text-sm leading-7 text-[#52605d]">
+        <p>
+          {c.sources.texts[0]}
+          <a href={SITE.mapsShare} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline"> {c.reviews.cta} ↗</a>
+        </p>
+        <p>
+          {c.sources.texts[1]}
+          <a href={SITE.mapsShare} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline"> {mapsLabel} ↗</a>
+        </p>
+        <p>
+          {c.sources.texts[2]}
+          <a href={SITE.govtUrl} target="_blank" rel="noopener noreferrer" class="text-[#0c6865] underline"> {govLabel} ↗</a>
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="bg-[#092e31] py-12 text-white">
+  <div class="mx-auto flex max-w-7xl flex-col gap-8 px-6 sm:flex-row sm:items-end sm:justify-between">
+    <div class="flex items-center gap-3">
+      <img src="/icons/logo.svg" alt="" class="h-12 w-12" />
+      <div>
+        <p class="font-bold">{c.footer.brand}</p>
+        <p class="mt-1 text-sm text-white/55">{c.footer.tagline}</p>
+      </div>
+    </div>
+    <p class="max-w-md text-sm leading-7 text-white/55">{c.footer.disclaimer}</p>
+  </div>
+</footer>

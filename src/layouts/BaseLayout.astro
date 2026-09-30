@@ -1,0 +1,66 @@
+---
+import { ogLocale } from '../i18n';
+import { SITE, HERO_IMG } from '../data/site';
+
+interface Props {
+  locale: 'ar' | 'en';
+  title: string;
+  description: string;
+  canonical: string;
+  alternates: { hreflang: string; href: string }[];
+  jsonLd: object[];
+}
+
+const { locale, title, description, canonical, alternates, jsonLd } = Astro.props;
+const ogImg = new URL(HERO_IMG, Astro.site ?? new URL(`https://${SITE.domain}`)).toString();
+const ogLoc = ogLocale[locale];
+---
+
+<!doctype html>
+<html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImg} />
+    <meta property="og:image:alt" content={title} />
+    <meta property="og:locale" content={ogLoc} />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <meta name="theme-color" content={SITE.themeColor} />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa+Ink&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    {jsonLd.map((s) => <script type="application/ld+json" set:html={JSON.stringify(s)} />)}
+
+    <script async src={`https://www.googletagmanager.com/gtag/js?id=${SITE.gaId}`}></script>
+    <script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','{SITE.gaId}');</script>
+  </head>
+  <body class="grain">
+    <slot />
+    <script is:inline>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

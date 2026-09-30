@@ -1,0 +1,12 @@
+{
+  "name": "philaetemples",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist/client"
+  },
+  "compatibility_date": "2025-04-01",
+  "observability": {
+    "enabled": true
+  }
+}

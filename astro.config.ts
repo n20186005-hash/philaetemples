@@ -3,12 +3,14 @@ import cloudflare from '@astrojs/cloudflare';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
 
-const site = process.env.PUBLIC_SITE_URL || undefined;
+// Always set an absolute site so canonical / OG / sitemap URLs are produced.
+// Override with PUBLIC_SITE_URL in CI / production if needed.
+const site = process.env.PUBLIC_SITE_URL || 'https://philaetemples.com';
 
 export default defineConfig({
   site,
   output: 'server',
   adapter: cloudflare({ imageService: 'compile' }),
-  integrations: site ? [sitemap()] : [],
+  integrations: [sitemap()],
   vite: { plugins: [tailwindcss()] },
 });

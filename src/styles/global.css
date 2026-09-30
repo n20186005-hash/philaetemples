@@ -2,8 +2,8 @@
 
 :root { --ink:#1e2828; --sand:#f3ecdf; --teal:#0c6865; --sun:#d99a48; --cream:#fbf8f1; }
 html { scroll-behavior:smooth; background:var(--cream); }
-body { margin:0; color:var(--ink); background:var(--cream); font-family: "Noto Sans Arabic", system-ui, sans-serif; }
-.display { font-family: "Aref Ruqaa Ink", serif; }
+body { margin:0; color:var(--ink); background:var(--cream); font-family: "Inter", "Noto Sans Arabic", system-ui, sans-serif; }
+.display { font-family: "Aref Ruqaa Ink", "Playfair Display", serif; }
 ::selection { background:#d99a48; color:#1e2828; }
 .grain { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E"); }
 .hero-shadow { box-shadow: 0 30px 80px rgba(20,44,42,.18); }
