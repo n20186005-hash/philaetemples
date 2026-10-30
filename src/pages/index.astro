@@ -12,9 +12,8 @@ const canonical = new URL(path, site).toString();
 const alternates = hreflangAlternates(site, path);
 const jsonLd = [attractionSchema('ar'), faqSchema(ar.faq.items)];
 
-const title = 'معبد فيله (أسوان) — دليل الزيارة والموقع';
-const description =
-  'دليل زائر شامل لمعبد فيله في أسوان: الموقع، طريقة الوصول بالقارب، الطقس الحيّ، الاستراتيجية الموسمية، وخدمات الزوّار.';
+const title = 'معبد فيله: المواعيد والتذاكر والقارب | دليل مستقل';
+const description = 'مواعيد معبد فيله الرسمية وآخر دخول، اختلاف وقت الخرائط، أسعار التذاكر حسب الفئة، وتخطيط القارب إلى أجيليكا. دليل مستقل مع مصادر رسمية وطقس النموذج قرب أسوان.';
 ---
 
 <BaseLayout locale="ar" title={title} description={description} canonical={canonical} alternates={alternates} jsonLd={jsonLd}>

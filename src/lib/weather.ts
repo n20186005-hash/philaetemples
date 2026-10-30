@@ -1,6 +1,6 @@
 // Server-side weather via Open-Meteo (no API key required).
 // Fetched at request time on the Cloudflare Worker and cached in-memory (TTL).
-// Returns raw readings and a visitor-facing "smart advice" derived from them,
+// Returns model fields and cautious planning advice derived from them,
 // localized for Arabic and English.
 
 import type { Locale } from '../i18n';
@@ -31,6 +31,8 @@ export interface WeatherData {
   current: CurrentWeather;
   days: DayForecast[];
   updated: string;
+  ageSeconds: number;
+  timezone: string;
 }
 
 export interface WeatherInfo {
@@ -103,237 +105,47 @@ export function windInfo(kmh: number, locale: Locale = 'ar'): WindInfo {
   return { level, word: WIND_WORD[locale](level) };
 }
 
-function rainCategory(code: number): 'none' | 'light' | 'medium' | 'storm' {
-  if (code >= 95) return 'storm';
-  if ([61, 63, 65, 66, 67, 81, 82].includes(code)) return 'medium';
-  if ([51, 53, 55, 56, 57, 80].includes(code)) return 'light';
-  return 'none';
+export interface Advice { travel:string[];activity:string[];items:string[];risks:string[] }
+export function buildAdvice(w:WeatherData,locale:Locale='ar'):Advice {
+ const a:Advice={travel:[],activity:[],items:[],risks:[]},d=w.days[0];if(!d)return a;
+ const t=(ar:string,en:string)=>locale==='ar'?ar:en;const codes=[w.current.code,d.code];const has=(values:number[])=>codes.some(c=>values.includes(c));
+ const storm=has([95,96,99]),freezing=has([56,57,66,67]),heavy=has([65,82]),moderate=has([63,81]),light=has([51,53,55,61,80]),snow=has([71,73,75,77,85,86]);
+ if(storm){a.risks.push(t('عاصفة رعدية في النموذج: ابتعد عن الماء والأرض المكشوفة ولا تحتمِ تحت الأشجار. راجع التحذيرات الرسمية.','Thunderstorm in the model: leave exposed ground and the water; do not shelter under trees. Check official warnings.'));a.items.push(t('رداء مطر بغطاء للرأس.','A hooded raincoat.'));}
+ if(freezing){a.risks.push(t('مطر أو رذاذ متجمد: قد يتكوّن الجليد على السطوح؛ أجّل المسار الزلق واطلب توجيهاً محلياً.','Freezing rain or drizzle: surfaces may ice. Delay slippery routes and seek local guidance.'));a.items.push(t('طبقات دافئة مقاومة للماء وحذاء مناسب.','Warm waterproof layers and suitable footwear.'));}
+ if(heavy){a.risks.push(t('مطر غزير في النموذج: تجنب المناطق المنخفضة والماء الجاري والسطوح الزلقة.','Heavy rain in the model: avoid low ground, flowing water and slippery surfaces.'));a.items.push(t('رداء مطر وحذاء مقاوم للماء.','A raincoat and waterproof footwear.'));}
+ if(moderate||light){a.travel.push(t(moderate?'مطر متوسط: انتبه للسطوح الزلقة.':'مطر خفيف أو رذاذ: انتبه للسطوح الزلقة.',moderate?'Moderate rain: watch slippery surfaces.':'Light rain or drizzle: watch slippery surfaces.'));a.items.push(t('مظلّة مدمجة أو رداء مطر حسب الرياح.','Compact umbrella or raincoat, subject to wind conditions.'));}
+ if(snow){a.risks.push(t('ثلج في النموذج: افحص خطر الانزلاق وإمكانية الوصول محلياً.','Snow in the model: check slippery surfaces and access locally.'));a.items.push(t('طبقات دافئة وحذاء مقاوم للماء.','Warm layers and waterproof footwear.'));}
+ if(d.rainProb>=60){a.travel.push(t('احتمال المطر مرتفع لكنه لا يحدد شدته. خطط بمرونة واحمل واقياً للمطر.','A high rain chance does not determine intensity. Keep plans flexible and carry rain protection.'));if(!a.items.length)a.items.push(t('مظلّة أو رداء مطر.','Umbrella or raincoat.'));}
+ if(Math.max(d.tmax,w.current.temperature)>=32){a.travel.push(t('حرارة مرتفعة: قصّر الوقت المكشوف وخطط للماء والظل.','High heat: shorten exposed time and plan water and shade.'));a.items.push(t('ماء وغطاء رأس وواقي شمس.','Water, a hat and sun protection.'));}
+ if(d.uvMax>=5)a.items.push(t('واقي شمس ونظارة وملابس تغطي الجلد.','Sun protection, sunglasses and covering clothing.'));
+ if(d.tmax-d.tmin>8||d.tmax<=10)a.items.push(t('طبقة إضافية للبرودة.','An extra layer for cooler conditions.'));
+ const force=windInfo(w.current.wind,locale).level;if(force>=7)a.risks.push(t('رياح قوية: ابتعد عن حافة الماء والمعدات غير المثبتة، واتبع تعليمات مشغّل القارب.','Strong wind: avoid exposed water edges and loose equipment; follow the boat operator’s instructions.'));else if(force>=5)a.travel.push(t('رياح نشطة: ثبّت الأغراض وافحص تعليمات الركوب.','Windy conditions: secure belongings and check boarding instructions.'));
+ if(has([45,48]))a.risks.push(t('ضباب: قد تكون الرؤية ضعيفة؛ قيّم الطريق والعبور محلياً.','Fog: visibility may be poor; assess routes and crossings locally.'));
+ if(!a.travel.length)a.travel.push(t('افحص الحرارة والرياح واحتمال المطر معاً؛ وصف السحاب وحده لا يثبت الراحة.','Check temperature, wind and rain probability together; cloud cover alone does not establish comfort.'));
+ a.activity.push(t('البيانات ليست إعلان إغلاق أو تصريح إبحار. أكّد ساعات الدخول والقارب والعودة مع المشغّل واتبع التحذيرات المحلية.','These data are not a closure notice or sailing clearance. Confirm admission, boat operation and return arrangements with the operator, and follow local warnings.'));
+ if(!a.items.length)a.items.push(t('ماء وحماية من الشمس مناسبة لظروف اليوم.','Water and sun protection appropriate to the day.'));return a;
 }
-
-export interface Advice {
-  travel: string[];
-  activity: string[];
-  items: string[];
-  risks: string[];
+const TTL=15*60*1000;
+const URL='https://api.open-meteo.com/v1/forecast?latitude=24.0255836&longitude=32.8841021&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset&timezone=Africa%2FCairo&forecast_days=7&wind_speed_unit=kmh';
+function stamp(time:string,offset:number){return Date.parse(time+'Z')-offset*1000;}
+function valid(raw:any,now:number):boolean {
+ const c=raw?.current,d=raw?.daily,o=raw?.utc_offset_seconds;if(!c||!d||raw.timezone!=='Africa/Cairo'||![7200,10800].includes(o)||typeof c.time!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(c.time))return false;
+ const model=stamp(c.time,o);if(!Number.isFinite(model)||now-model>2*3600000||model-now>3600000)return false;
+ if(!['temperature_2m','apparent_temperature','relative_humidity_2m','wind_speed_10m','weather_code','precipitation'].every(k=>typeof c[k]==='number'&&Number.isFinite(c[k])))return false;
+ const times=d.time;if(!Array.isArray(times)||!times.length||times.length>7||times[0]!==new Date(now+o*1000).toISOString().slice(0,10))return false;
+ if(!times.every((v:any,i:number)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Date.parse(v+'T00:00:00Z')===Date.parse(times[0]+'T00:00:00Z')+i*86400000))return false;
+ if(!['weather_code','temperature_2m_max','temperature_2m_min','precipitation_probability_max','uv_index_max'].every(k=>Array.isArray(d[k])&&d[k].length===times.length&&d[k].every((v:any)=>typeof v==='number'&&Number.isFinite(v))))return false;
+ return ['sunrise','sunset'].every(k=>Array.isArray(d[k])&&d[k].length===times.length&&d[k].every((v:any)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)));
 }
-
-const ADVICE: Record<Locale, {
-  rainHi: string; rainHiAct: string; rainHiItem: string;
-  rainLight: string; rainLightItem: string;
-  rainMedRisk: string; rainMedAct: string; rainMedItem: string;
-  rainStormRisk: string; rainStormItem: string;
-  hotTravel: string; hotAct: string; hotItem: string;
-  uvTravel: string; uvItem: string;
-  diffTravel: string; diffItem: string;
-  coldTravel: string; coldItem: string;
-  windHiRisk: string; windHiAct: string;
-  windMedTravel: string; windMedAct: string; windMedItem: string;
-  clearTravel: string; clearAct: string;
-  cloudTravel: string; cloudAct: string;
-  fogRisk: string; fogAct: string; fogItem: string;
-  calm: string;
-}> = {
-  ar: {
-    rainHi: 'احتمال المطر مرتفع اليوم، خذ مظلّةً أو رداءَ مطر.',
-    rainHiAct: 'فضّل المسارات المظلّلة؛ ورحلةُ القارب إلى الجزيرة قد تتأثر بالأمطار.',
-    rainHiItem: 'مظلّةٌ قابلة للطي أو رداء مطر.',
-    rainLight: 'أمطارٌ خفيفة محتملة، الأرض زلقة فانتبه أثناء المشي.',
-    rainLightItem: 'مظلّةٌ صغيرة.',
-    rainMedRisk: 'مطرٌ متوسط إلى غزير — تجنّب المنحدرات والمناطق المنخفضة؛ وقد يتوقف القارب النهري.',
-    rainMedAct: 'لا تجلس طويلاً في العراء؛ احمل رداءَ مطرٍ لا مظلّةً طويلة (تقلّب الرياح).',
-    rainMedItem: 'رداءُ مطر.',
-    rainStormRisk: 'عاصفةٌ رعدية — لا تصعد المرتفعات، ولا تجلس تحت الأشجار؛ وتتوقف المراكبُ المائية غالباً.',
-    rainStormItem: 'رداءُ مطر.',
-    hotTravel: 'الحرارة مرتفعة، تجنّب الخروج وقت الظهيرة.',
-    hotAct: 'قصّر وقتَ البقاء في العراء، واسترح في الظل بين الحين والآخر.',
-    hotItem: 'واقٍ شمسي، ماءٌ كافٍ، وأدواتُ تبريد.',
-    uvTravel: 'الأشعةُ الشمسية قوية، احمِ بشرتك منها.',
-    uvItem: 'كريمُ وقاية شمسية، نظارةٌ شمسية، وقبعة.',
-    diffTravel: 'فارقُ الحرارة بين النهار والليل كبير؛ احمل طبقةً إضافية لتلبسها لاحقاً.',
-    diffItem: 'جاكيتٌ خفيف.',
-    coldTravel: 'الحرارة منخفضة، دفّئ نفسك جيداً.',
-    coldItem: 'معطفٌ سميك ووشاح.',
-    windHiRisk: 'رياحٌ قوية — ابتعد عن حواف الماء؛ وتتوقف المراكبُ النهرية غالباً.',
-    windHiAct: 'المشاريعُ المائية مغلقةٌ في الغالب اليوم.',
-    windMedTravel: 'الرياح نشطة بعض الشيء اليوم.',
-    windMedAct: 'قد تتأثر مراكبُ النيل بالرياح؛ تحقّق قبل الركوب.',
-    windMedItem: 'القبعة قد تطير؛ تجنّب الثياب الواسعة الطويلة.',
-    clearTravel: 'الجو صافٍ ومناسب للزيارة الخارجية.',
-    clearAct: 'وقتٌ ممتاز لمشاهدة الشروق والغروب على النيل.',
-    cloudTravel: 'الضوء ناعم ومناسب جداً للتصوير.',
-    cloudAct: 'بلا حرٍّ لاهب، مناسب للتجوّل الطويل.',
-    fogRisk: 'ضبابٌ كثيف — الرؤية ضعيفة، وقد تتأخر المراكبُ النهرية.',
-    fogAct: 'غير مناسب لمشاهدة المناظر البعيدة اليوم.',
-    fogItem: 'كمامة.',
-    calm: 'أحوالٌ معتدلة عموماً اليوم — استمتع بزيارتك دون قلق خاص.',
-  },
-  en: {
-    rainHi: 'High chance of rain today — bring a folding umbrella or raincoat.',
-    rainHiAct: 'Favour shaded routes; the boat crossing to the island can be affected by rain.',
-    rainHiItem: 'A packable umbrella or raincoat.',
-    rainLight: 'Possible light rain; surfaces may be slippery, watch your step.',
-    rainLightItem: 'A small umbrella.',
-    rainMedRisk: 'Moderate to heavy rain — avoid slopes and low areas; the ferry may stop running.',
-    rainMedAct: 'Do not sit out in the open long; carry a raincoat rather than a long umbrella (gusty wind).',
-    rainMedItem: 'A raincoat.',
-    rainStormRisk: 'Thunderstorm — do not climb heights or sit under trees; watercraft usually stop.',
-    rainStormItem: 'A raincoat.',
-    hotTravel: 'High heat — avoid going out at midday.',
-    hotAct: 'Keep time in the open short and rest in the shade now and then.',
-    hotItem: 'Sun protection, plenty of water, and cooling items.',
-    uvTravel: 'Strong UV — protect your skin.',
-    uvItem: 'Sunscreen, sunglasses, and a hat.',
-    diffTravel: 'Large day-to-night temperature swing — carry an extra layer for later.',
-    diffItem: 'A light jacket.',
-    coldTravel: 'Low temperatures — keep warm.',
-    coldItem: 'A thick coat and scarf.',
-    windHiRisk: 'Strong wind — stay away from water edges; river ferries often stop.',
-    windHiAct: 'Water activities are generally closed today.',
-    windMedTravel: 'A little breezy today.',
-    windMedAct: 'Nile ferries may be affected by wind; check before boarding.',
-    windMedItem: 'Your hat may blow away; avoid long, loose clothing.',
-    clearTravel: 'Clear and pleasant for an outdoor visit.',
-    clearAct: 'A great time for sunrise and sunset over the Nile.',
-    cloudTravel: 'Soft light, excellent for photography.',
-    cloudAct: 'No scorching heat — good for long walks.',
-    fogRisk: 'Dense fog — poor visibility; river ferries may be delayed.',
-    fogAct: 'Not ideal for distant views today.',
-    fogItem: 'A mask.',
-    calm: 'Generally mild conditions today — enjoy your visit without special concern.',
-  },
-};
-
-export function buildAdvice(w: WeatherData, locale: Locale = 'ar'): Advice {
-  const a: Advice = { travel: [], activity: [], items: [], risks: [] };
-  const t = ADVICE[locale];
-  const today = w.days[0];
-  if (!today) return a;
-
-  const tmax = today.tmax;
-  const tmin = today.tmin;
-  const rainProb = today.rainProb;
-  const uvMax = today.uvMax;
-  const code = today.code;
-  const wind = w.current.wind;
-  const { level: windLvl } = windInfo(wind, locale);
-
-  if (rainProb >= 60) {
-    a.travel.push(t.rainHi);
-    a.activity.push(t.rainHiAct);
-    a.items.push(t.rainHiItem);
-  }
-
-  const rc = rainCategory(code);
-  if (rc === 'light') {
-    a.travel.push(t.rainLight);
-    a.items.push(t.rainLightItem);
-  } else if (rc === 'medium') {
-    a.risks.push(t.rainMedRisk);
-    a.activity.push(t.rainMedAct);
-    a.items.push(t.rainMedItem);
-  } else if (rc === 'storm') {
-    a.risks.push(t.rainStormRisk);
-    a.items.push(t.rainStormItem);
-  }
-
-  const hot = Math.max(tmax, w.current.temperature) >= 32;
-  if (hot) {
-    a.travel.push(t.hotTravel);
-    a.activity.push(t.hotAct);
-    a.items.push(t.hotItem);
-  }
-
-  if (uvMax >= 5) {
-    a.travel.push(t.uvTravel);
-    a.items.push(t.uvItem);
-  }
-
-  if (tmax - tmin > 8) {
-    a.travel.push(t.diffTravel);
-    a.items.push(t.diffItem);
-  }
-  if (tmax <= 10) {
-    a.travel.push(t.coldTravel);
-    a.items.push(t.coldItem);
-  }
-
-  if (windLvl >= 7) {
-    a.risks.push(t.windHiRisk);
-    a.activity.push(t.windHiAct);
-  } else if (windLvl >= 5) {
-    a.travel.push(t.windMedTravel);
-    a.activity.push(t.windMedAct);
-    a.items.push(t.windMedItem);
-  }
-
-  if ((code === 0 || code === 1) && !hot) {
-    a.travel.push(t.clearTravel);
-    a.activity.push(t.clearAct);
-  } else if (code === 2 || code === 3) {
-    a.travel.push(t.cloudTravel);
-    a.activity.push(t.cloudAct);
-  }
-
-  if (code === 45 || code === 48) {
-    a.risks.push(t.fogRisk);
-    a.activity.push(t.fogAct);
-    a.items.push(t.fogItem);
-  }
-
-  return a;
+export function createWeatherService(fetcher:typeof fetch=fetch,clock:()=>number=Date.now){
+ let cache:{raw:any;data:WeatherData;ts:number}|null=null;
+ return async function():Promise<WeatherData|null>{
+  const now=clock();if(cache&&now-cache.ts>=0&&now-cache.ts<TTL&&valid(cache.raw,now))return {...cache.data,ageSeconds:Math.floor((now-cache.ts)/1000)};
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+  try{const response=await fetcher(URL,{signal:controller.signal});if(!response.ok)throw Error('Provider unavailable');const j=await response.json() as any,at=clock();if(!valid(j,at))throw Error('Invalid or old model');
+   const data:WeatherData={current:{temperature:j.current.temperature_2m,apparent:j.current.apparent_temperature,humidity:j.current.relative_humidity_2m,wind:j.current.wind_speed_10m,code:j.current.weather_code,precipitation:j.current.precipitation,uv:j.daily.uv_index_max[0],time:j.current.time},days:j.daily.time.map((date:string,i:number)=>({date,code:j.daily.weather_code[i],tmax:j.daily.temperature_2m_max[i],tmin:j.daily.temperature_2m_min[i],rainProb:j.daily.precipitation_probability_max[i],uvMax:j.daily.uv_index_max[i],sunrise:j.daily.sunrise[i],sunset:j.daily.sunset[i]})),updated:new Date(at).toISOString(),ageSeconds:0,timezone:'Africa/Cairo'};
+   cache={raw:j,data,ts:at};return data;
+  }catch{return null;}finally{clearTimeout(timer);}
+ };
 }
-
-interface CacheEntry {
-  data: WeatherData;
-  ts: number;
-}
-
-let cache: CacheEntry | null = null;
-const TTL = 30 * 60 * 1000; // 30 minutes
-
-const LAT = 24.0255836;
-const LNG = 32.8841021;
-
-export async function getWeather(): Promise<WeatherData | null> {
-  const now = Date.now();
-  if (cache && now - cache.ts < TTL) return cache.data;
-
-  const url =
-    `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}` +
-    `&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,uv_index` +
-    `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max,sunrise,sunset` +
-    `&timezone=Africa%2FCairo&forecast_days=7&wind_speed_unit=kmh`;
-
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`weather ${res.status}`);
-    const j = (await res.json()) as any;
-    const data: WeatherData = {
-      current: {
-        temperature: j.current.temperature_2m,
-        apparent: j.current.apparent_temperature,
-        humidity: j.current.relative_humidity_2m,
-        wind: j.current.wind_speed_10m,
-        code: j.current.weather_code,
-        precipitation: j.current.precipitation,
-        uv: j.current.uv_index,
-        time: j.current.time,
-      },
-      days: j.daily.time.map((d: string, i: number) => ({
-        date: d,
-        code: j.daily.weather_code[i],
-        tmax: j.daily.temperature_2m_max[i],
-        tmin: j.daily.temperature_2m_min[i],
-        rainProb: j.daily.precipitation_probability_max[i],
-        uvMax: j.daily.uv_index_max[i],
-        sunrise: j.daily.sunrise[i],
-        sunset: j.daily.sunset[i],
-      })),
-      updated: new Date().toISOString(),
-    };
-    cache = { data, ts: now };
-    return data;
-  } catch {
-    return cache?.data ?? null;
-  }
-}
+export const getWeather=createWeatherService();

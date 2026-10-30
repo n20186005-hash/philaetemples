@@ -10,7 +10,7 @@ const site = process.env.PUBLIC_SITE_URL || 'https://philaetemples.com';
 export default defineConfig({
   site,
   output: 'server',
-  adapter: cloudflare({ imageService: 'compile' }),
-  integrations: [sitemap()],
+  adapter: cloudflare({ imageService: 'compile', configPath:'./wrangler.jsonc' }),
+  integrations: [sitemap({filter:url=>!/^\/(?:en\/)?404(?:\/|\.html)?$/.test(new URL(url).pathname)})],
   vite: { plugins: [tailwindcss()] },
 });

@@ -1,6 +1,6 @@
 export interface Card {
   icon?: string;
-  tag: string;
+  tag?: string;
   title: string;
   text?: string;
 }

@@ -1,0 +1,7 @@
+---
+interface Props { photo: 1|2; locale:'ar'|'en'; dark?:boolean; id?:string }
+const {photo,locale,dark=false,id}=Astro.props;
+const p=photo===1?{title:'The-Temple-of-Philae-on-Agilika-Island.jpg',author:'Ivan Marcialis',creator:'https://www.flickr.com/people/97064431@N00',date:'2006-08-01',licence:'CC BY-SA 2.0',licenseUrl:'https://creativecommons.org/licenses/by-sa/2.0/'}:{title:'Agilkia.jpg',author:'Heinz Albers · www.heinzalbers.org',creator:'https://www.heinzalbers.org/',date:'2005',licence:'CC BY 2.5',licenseUrl:'https://creativecommons.org/licenses/by/2.5/'};
+---
+<p id={id} class:list={['photo-credit',{'photo-credit-dark':dark}]}><span lang="en" dir="ltr"><a href={'https://commons.wikimedia.org/wiki/File:'+encodeURIComponent(p.title)}>{p.title}</a> · <a href={p.creator}>{p.author}</a> · <bdi>{p.date}</bdi> · <a href={p.licenseUrl}>{p.licence}</a></span><span class="block">{locale==='ar'?'تأطير بالعرض فقط؛ الملف الأصلي دون تعديل. صورة تاريخية لا تثبت الدخول أو خدمة القارب الحالية.':'Framed for display; original file unchanged. Historic photograph, not evidence of current access or boat service.'}</span></p>
+<style>.photo-credit{margin-top:.75rem;font-size:.74rem;line-height:1.9;overflow-wrap:anywhere;color:#405653}.photo-credit a{text-decoration:underline;text-underline-offset:.12em}.photo-credit-dark{color:#e0e9e4}</style>

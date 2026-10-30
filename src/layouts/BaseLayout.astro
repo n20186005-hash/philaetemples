@@ -1,4 +1,5 @@
 ---
+import '../styles/global.css';
 import { ogLocale } from '../i18n';
 import { SITE, HERO_IMG } from '../data/site';
 
@@ -44,14 +45,14 @@ const ogLoc = ogLocale[locale];
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa+Ink&family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
 
-    {jsonLd.map((s) => <script type="application/ld+json" set:html={JSON.stringify(s)} />)}
+    {jsonLd.map((s) => <script is:inline type="application/ld+json" set:html={JSON.stringify(s)} />)}
 
-    <script async src={`https://www.googletagmanager.com/gtag/js?id=${SITE.gaId}`}></script>
-    <script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','{SITE.gaId}');</script>
+    <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${SITE.gaId}`}></script>
+    <script is:inline define:vars={{gaId:SITE.gaId}}>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',gaId);</script>
   </head>
   <body class="grain">
     <slot />
